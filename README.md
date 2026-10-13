@@ -74,6 +74,22 @@ docker compose logs -f app livekit    # logs
 git pull && docker compose up -d --build    # update
 ```
 
+**Automatic deployment (optional).** After CI passes on `main`, the included `Deploy` workflow updates the server to that commit. If the new version isn't healthy, it rolls back automatically. To set it up:
+
+1. On the server, keep the checkout at a fixed path (for example `/opt/ocak`) and run `deploy/setup.sh` there once.
+2. Create a deploy key that can **only** run the deploy script:
+   ```bash
+   ssh-keygen -t ed25519 -f ~/ocak-deploy -N "" -C github-actions
+   install -d -m 700 ~/.ssh
+   echo "command=\"/opt/ocak/deploy/remote-deploy.sh\",restrict $(cat ~/ocak-deploy.pub)" >> ~/.ssh/authorized_keys
+   cat ~/ocak-deploy            # → GitHub secret DEPLOY_SSH_KEY, then: rm ~/ocak-deploy*
+   ```
+3. Print the server's host keys for the `DEPLOY_SSH_KNOWN_HOSTS` secret (replace host and port):
+   ```bash
+   for f in /etc/ssh/ssh_host_*_key.pub; do echo "[your.host]:22 $(cut -d' ' -f1,2 "$f")"; done
+   ```
+4. In GitHub, go to **Settings → Secrets and variables → Actions** and add the variables `DEPLOY_SSH_HOST`, `DEPLOY_SSH_PORT`, `DEPLOY_SSH_USER` and `DEPLOY_URL`, plus the two secrets above.
+
 **Bandwidth.** Expect roughly 1.5–2.5 Mbps of outbound traffic per viewer for each 720p camera, and more for 1080p screen shares. A five-person call with cameras on uses about 25–35 Mbps. Check your provider's traffic limits.
 
 ## Desktop app

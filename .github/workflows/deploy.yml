@@ -1,0 +1,57 @@
+# Deploys to your server after CI passes on main (or when run by hand).
+#
+# One-time setup (see README → "Automatic deployment"):
+#   Variables: DEPLOY_SSH_HOST, DEPLOY_SSH_PORT, DEPLOY_SSH_USER, DEPLOY_URL
+#   Secrets:   DEPLOY_SSH_KEY, DEPLOY_SSH_KNOWN_HOSTS
+# Without DEPLOY_SSH_HOST set (e.g. in forks) this workflow does nothing.
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_SSH_HOST != '' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'))
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_URL }}
+    steps:
+      - name: Install deployment SSH key
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_SSH_KNOWN_HOSTS }}
+        run: |
+          test -n "$SSH_KEY" || { echo "::error::Secret DEPLOY_SSH_KEY is not set"; exit 1; }
+          test -n "$SSH_KNOWN_HOSTS" || { echo "::error::Secret DEPLOY_SSH_KNOWN_HOSTS is not set"; exit 1; }
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Deploy
+        env:
+          SSH_HOST: ${{ vars.DEPLOY_SSH_HOST }}
+          SSH_PORT: ${{ vars.DEPLOY_SSH_PORT || '22' }}
+          SSH_USER: ${{ vars.DEPLOY_SSH_USER || 'root' }}
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          # The server's authorized_keys entry only lets this key run deploy/remote-deploy.sh;
+          # the commit SHA we pass here is all it receives.
+          ssh -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            "$SSH_USER@$SSH_HOST" "$SHA"

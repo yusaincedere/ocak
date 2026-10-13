@@ -6,6 +6,10 @@ cd "$(dirname "$0")"
 
 rand() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c "$1"; }
 
+# The port this SSH session came in on (so firewall advice never locks you out).
+SSH_PORT=$(awk '{print $4}' <<<"${SSH_CONNECTION:-}")
+SSH_PORT=${SSH_PORT:-22}
+
 if [[ ! -f .env ]]; then
   read -rp "Main domain for the app (e.g. chat.example.com): " DOMAIN
   read -rp "Domain for voice/video (e.g. rtc.example.com): " RTC_DOMAIN
@@ -44,10 +48,11 @@ cat <<EOF
 
 Next:
   1. DNS: point A records for ${DOMAIN} and ${RTC_DOMAIN} at this server's IP.
-  2. Firewall:
-       ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp
+  2. Firewall - open these ports (ufw shown; also check your provider's firewall panel):
+       ufw allow 80/tcp && ufw allow 443/tcp
        ufw allow 7881/tcp && ufw allow 3478/udp && ufw allow 50000:50200/udp
-       ufw enable
+     Your SSH port is ${SSH_PORT}. If ufw is NOT active yet, run 'ufw allow ${SSH_PORT}/tcp'
+     BEFORE 'ufw enable', and allow any ports your other apps use, or you'll lock them out.
   3. Start:   docker compose up -d --build
   4. Open https://${DOMAIN}, pick a name, start a call and share the link.${CREATE_CODE:+
      Server code for starting calls: ${CREATE_CODE}}
