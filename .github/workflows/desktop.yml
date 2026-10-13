@@ -1,0 +1,51 @@
+# Builds the desktop installers on GitHub's machines.
+# Run it from the Actions tab ("Run workflow"), or push a tag like desktop-v0.1.0.
+# Optional: set a repository variable OCAK_SERVER_URL (Settings → Secrets and variables → Actions → Variables)
+# so friends never have to type the server address.
+name: Desktop app
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['desktop-v*']
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            script: dist:win
+          - os: macos-latest
+            script: dist:mac
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - run: npm ci
+
+      - name: Bake in the server address
+        if: ${{ vars.OCAK_SERVER_URL != '' }}
+        run: npm pkg set ocak.serverUrl="${{ vars.OCAK_SERVER_URL }}"
+
+      - run: npm run ${{ matrix.script }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false # unsigned build (fine for friends)
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ocak-${{ matrix.os }}
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.dmg
+          if-no-files-found: error

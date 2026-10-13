@@ -1,0 +1,12 @@
+node_modules/
+dist/
+data/
+*.db
+*.db-*
+.env
+deploy/.env
+deploy/livekit.yaml
+.DS_Store
+downloads/
+deploy/downloads/
+desktop/release/

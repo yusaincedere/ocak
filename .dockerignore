@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/data
+**/*.db*
+.env
+deploy
+.git
+.DS_Store
+desktop
+downloads

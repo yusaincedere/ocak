@@ -1,0 +1,16 @@
+# Generated into livekit.yaml by setup.sh - edit the template, not the output.
+port: 7880 # signalling; keep this closed in the firewall - Caddy proxies it over HTTPS
+rtc:
+  tcp_port: 7881 # fallback for networks that block UDP
+  port_range_start: 50000
+  port_range_end: 50200 # each participant uses a couple of ports; plenty for a friend group
+  use_external_ip: true
+turn:
+  # Built-in TURN relay for friends behind strict NATs / corporate networks.
+  enabled: true
+  domain: __RTC_DOMAIN__
+  udp_port: 3478
+keys:
+  __LIVEKIT_API_KEY__: __LIVEKIT_API_SECRET__
+logging:
+  level: info

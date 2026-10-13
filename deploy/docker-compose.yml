@@ -1,0 +1,46 @@
+# Run from this folder on the VPS:   ./setup.sh   then   docker compose up -d --build
+#
+# Everything uses host networking: simplest for WebRTC (LiveKit needs lots of UDP ports),
+# and the host firewall (ufw) applies normally. Only Caddy (80/443) and LiveKit's media
+# ports should be open to the internet - see README.
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    environment:
+      HOST: 127.0.0.1
+      PORT: 3000
+      DB_PATH: /data/ocak.db
+      DOWNLOADS_DIR: /downloads
+    volumes:
+      - app-data:/data
+      # Drop Ocak-Setup-x.y.z.exe / Ocak-x.y.z.dmg in deploy/downloads to offer them in the app.
+      - ./downloads:/downloads:ro
+
+  livekit:
+    image: livekit/livekit-server:latest
+    restart: unless-stopped
+    network_mode: host
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    network_mode: host
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  app-data:
+  caddy-data:
+  caddy-config:

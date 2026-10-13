@@ -1,0 +1,12 @@
+# Caddy gets and renews HTTPS certificates automatically.
+# DOMAIN and RTC_DOMAIN come from .env
+
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+
+# LiveKit signalling (WebSocket). Media itself flows over UDP directly to LiveKit.
+{$RTC_DOMAIN} {
+	reverse_proxy 127.0.0.1:7880
+}
