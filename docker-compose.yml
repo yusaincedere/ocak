@@ -1,0 +1,38 @@
+# Run Ocak on your own computer with one command:
+#
+#   docker compose up --build
+#
+# then open http://localhost:3000
+#
+# This is for local testing only (it uses LiveKit's public dev keys).
+# For the real server on your VPS, use deploy/ (see README).
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development # allows the dev keys below
+      HOST: 0.0.0.0
+      PORT: 3000
+      LIVEKIT_PUBLIC_URL: ws://localhost:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: secret
+    volumes:
+      - ocak-local-data:/data
+    depends_on:
+      - livekit
+
+  livekit:
+    image: livekit/livekit-server:latest
+    # --dev: built-in devkey/secret, single UDP port 7882 for media.
+    # --node-ip 127.0.0.1: tell browsers to send media to this computer.
+    command: --dev --bind 0.0.0.0 --node-ip 127.0.0.1
+    ports:
+      - "7880:7880" # signalling
+      - "7881:7881" # media over TCP (fallback)
+      - "7882:7882/udp" # media over UDP
+
+volumes:
+  ocak-local-data:

@@ -19,20 +19,26 @@ Self-hosted voice and video calls for a group of friends, running on your own VP
 
 Calls go through **LiveKit**, an open-source media server, on your VPS. Each person uploads their stream once and the server forwards it, so calls stay smooth with 5–10 people and nobody's home IP is exposed.
 
-## Run it locally (Mac)
+## Run it locally
+
+**One command with Docker** (needs [Docker Desktop](https://www.docker.com/products/docker-desktop/) or OrbStack):
 
 ```bash
-brew install livekit            # one-time
-livekit-server --dev            # terminal 1: LiveKit on ws://localhost:7880
-
-cp .env.example .env            # terminal 2
-npm install
-npm run dev                     # http://localhost:5173
+docker compose up --build
 ```
 
-Open http://localhost:5173 and start a call. To test with yourself, open the invite link in a private window.
+Open **http://localhost:3000**, start a call, and open the invite link in a private window to join as a second person (wear headphones). Press `Ctrl+C` to stop. Your recent rooms survive restarts.
 
-> Browsers only allow mic, camera and screen capture on `localhost` or HTTPS. A phone on your Wi-Fi can't join your dev server; use the deployed version for that.
+To try the desktop app against it: `cd desktop && npm install && npm run dev:docker`.
+
+**Without Docker (for working on the code, with live reload):**
+
+```bash
+brew install livekit && livekit-server --dev     # terminal 1
+cp .env.example .env && npm install && npm run dev   # terminal 2 → http://localhost:5173
+```
+
+> Browsers only allow mic, camera and screen capture on `localhost` or HTTPS. A phone on your Wi-Fi can't join a local run; use the deployed version for that.
 
 ## Deploy to the VPS
 
