@@ -5,7 +5,7 @@
 # then open http://localhost:3000
 #
 # This is for local testing only (it uses LiveKit's public dev keys).
-# For the real server on your VPS, use deploy/ (see README).
+# For a production server, use deploy/ (see README).
 
 services:
   app:

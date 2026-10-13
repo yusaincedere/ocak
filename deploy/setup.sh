@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One-time setup on the VPS: writes .env and livekit.yaml with fresh secrets.
+# One-time setup on the server: writes .env and livekit.yaml with fresh secrets.
 # Re-running keeps your existing .env (so sessions and keys stay valid).
 set -euo pipefail
 cd "$(dirname "$0")"

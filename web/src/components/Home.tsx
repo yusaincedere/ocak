@@ -36,7 +36,7 @@ function NameStep() {
     <div className="home">
       <form className="home-card" onSubmit={submit}>
         <Brand />
-        <h1>What should friends call you?</h1>
+        <h1>What should people call you?</h1>
         <input
           className="field big"
           value={value}

@@ -1,128 +1,124 @@
 # Ocak
 
-*Ocak* (Turkish for "hearth") is the spot friends gather around.
+Self-hosted voice, video and screen sharing with no accounts. **Start a call, share the link, talk.**
 
-Self-hosted voice and video calls for a group of friends, running on your own VPS. There are no accounts, no servers or channels to set up, and nothing to manage: **start a call, share the link, talk.**
+*Ocak* is Turkish for "hearth", the place people gather around.
 
-- **No accounts.** You pick a name the first time, and it's saved on that device. Click it to change it anytime.
-- **Start a call** to get a room with an ID and password. Share the link (`https://your.site/r/k7m2-qp4x#h3x9tw`) and friends join in one click, or they can type the ID and password.
-- **Rooms are reusable.** Your recent rooms are on the home screen, so "our room" keeps working. Rooms nobody uses for 7 days are deleted.
-- **In a call:** voice, camera, **screen share with audio**, mute/deafen, mic and camera pickers, and join/leave sounds. Screen shares automatically fill the stage.
-- **In-call chat** lives only for the call. Nothing is stored on the server.
-- **Desktop app** (Windows/macOS) adds push-to-talk, a global mute shortcut, a mini overlay and tray controls (see below).
+## Features
+
+- **No accounts.** People pick a display name, which is stored on their device and can be changed anytime.
+- **Rooms with a link.** Starting a call creates a room with an ID and password. Share the invite link (`/r/<id>#<password>`) for one-click joining, or share the ID and password.
+- **Reusable rooms.** Recent rooms appear on the home screen. Unused rooms expire after a configurable number of days.
+- **Calls:** voice, camera, screen sharing with audio, mute/deafen, device selection, and join/leave sounds.
+- **In-call chat** that exists only for the duration of the call. Nothing is stored on the server.
+- **Desktop app** for Windows and macOS: push-to-talk, a global mute shortcut, a floating mini overlay, tray controls and a screen/window picker.
+- **Optional server code** to restrict who can *start* calls. Joining a room never needs it.
+
+Media is routed through [LiveKit](https://livekit.io), an open-source WebRTC SFU. Each participant uploads one stream and the server forwards it, which keeps group calls smooth and keeps participants' IP addresses private from each other.
 
 ```
- browser / desktop app ──HTTPS──► Caddy ─┬─► app (Node): creates rooms, checks passwords, hands out call tokens
-                                          └─► LiveKit (call signalling)
- browser / desktop app ◄───UDP media────► LiveKit SFU on your VPS (voice / video / screen share)
+ browser / desktop app ──HTTPS──► Caddy ─┬─► app (Node): rooms, passwords, call tokens
+                                          └─► LiveKit (signalling)
+ browser / desktop app ◄───UDP media────► LiveKit (voice / video / screen share)
 ```
 
-Calls go through **LiveKit**, an open-source media server, on your VPS. Each person uploads their stream once and the server forwards it, so calls stay smooth with 5–10 people and nobody's home IP is exposed.
+## Quick start (local)
 
-## Run it locally
-
-**One command with Docker** (needs [Docker Desktop](https://www.docker.com/products/docker-desktop/) or OrbStack):
+Requires [Docker](https://docs.docker.com/get-docker/).
 
 ```bash
 docker compose up --build
 ```
 
-Open **http://localhost:3000**, start a call, and open the invite link in a private window to join as a second person (wear headphones). Press `Ctrl+C` to stop. Your recent rooms survive restarts.
+Open **http://localhost:3000** and start a call. To test with a second participant, open the invite link in a private window.
 
-To try the desktop app against it: `cd desktop && npm install && npm run dev:docker`.
+> Browsers only allow microphone, camera and screen capture on `localhost` or HTTPS, so other devices can't join a local run. Deploy it to test across devices.
 
-**Without Docker (for working on the code, with live reload):**
+## Self-hosting
 
-```bash
-brew install livekit && livekit-server --dev     # terminal 1
-cp .env.example .env && npm install && npm run dev   # terminal 2 → http://localhost:5173
-```
+Ocak runs on any Linux machine with Docker and a public IP: a cloud VM, VPS, dedicated server or home server with port forwarding.
 
-> Browsers only allow mic, camera and screen capture on `localhost` or HTTPS. A phone on your Wi-Fi can't join a local run; use the deployed version for that.
+**Requirements**
 
-## Deploy to the VPS
+- Docker with the Compose plugin
+- Two domain names pointing at the server, one for the app and one for media (for example `chat.example.com` and `rtc.example.com`). If you don't have a domain, a wildcard DNS service such as [sslip.io](https://sslip.io) works.
+- Open ports: `80/tcp`, `443/tcp`, `7881/tcp`, `3478/udp`, `50000-50200/udp`
 
-You need:
-- a Linux VPS with Docker and Docker Compose
-- two DNS names that point at it, for example `chat.yourdomain.com` and `rtc.yourdomain.com`
-
-**No domain?** `sslip.io` gives you one for free: if your IP is `1.2.3.4`, use `chat.1-2-3-4.sslip.io` and `rtc.1-2-3-4.sslip.io`.
+**Install**
 
 ```bash
+git clone <this repo> ocak
 cd ocak/deploy
-./setup.sh                      # asks for the domains and an optional server code, writes .env + livekit.yaml
-# open the firewall ports it prints (80, 443, 7881/tcp, 3478/udp, 50000-50200/udp)
+./setup.sh                    # asks for the domains and optional server code; writes .env and livekit.yaml
 docker compose up -d --build
 ```
 
-**Server code (recommended):** anyone can *join* a room with its link, but *starting* a new call asks for the server code once. The browser then remembers it. This stops strangers who find your site from running their own calls on your bandwidth. Set or change it with `CREATE_CODE` in `deploy/.env`.
+HTTPS certificates are issued automatically by Caddy.
 
-Useful commands:
+**Configuration** (`deploy/.env`)
+
+| Variable | Description |
+| --- | --- |
+| `DOMAIN` | Domain for the web app |
+| `RTC_DOMAIN` | Domain for LiveKit |
+| `CREATE_CODE` | Optional. Code required to start a call; leave empty to allow anyone |
+| `ROOM_TTL_DAYS` | Days before an unused room is deleted (default `7`) |
+| `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` | Generated by `setup.sh` |
+
+**Operations**
 
 ```bash
-docker compose logs -f app livekit     # logs
-docker compose up -d --build app       # redeploy after pulling changes
+docker compose logs -f app livekit    # logs
+git pull && docker compose up -d --build    # update
 ```
 
-**Bandwidth:** roughly 1.5–2.5 Mbps out of the VPS per viewer per 720p camera, and more for 1080p screen shares. Five friends with cameras on is about 25–35 Mbps. Check your VPS's monthly traffic quota.
+**Bandwidth.** Expect roughly 1.5–2.5 Mbps of outbound traffic per viewer for each 720p camera, and more for 1080p screen shares. A five-person call with cameras on uses about 25–35 Mbps. Check your provider's traffic limits.
 
-## Desktop app (Windows .exe / macOS .dmg)
+## Desktop app
 
-The desktop app is a small Electron shell (`desktop/`) that opens your Ocak server, so web updates show up there instantly. It adds a few voice extras:
+The desktop app (`desktop/`) is an Electron shell that loads an Ocak server and adds:
 
-- **Mini overlay:** when you switch to a game or another app during a call, a small floating panel shows who's talking, with mute, deafen and leave. Drag it anywhere, and it remembers the spot.
-- **Tray controls:** mute, deafen or leave the call from the tray icon. Closing the window keeps you in the call.
-- **Push-to-talk:** any key or extra mouse button, and it works while you're in a game.
-- **Global mute shortcut:** `Ctrl+Shift+M` by default.
-- **Screen picker:** choose a screen or a single app window, and optionally share computer audio (Windows).
+- **Mini overlay:** a small always-on-top panel showing who's talking, with mute, deafen and leave. It appears while another app is focused during a call.
+- **Tray controls:** mute, deafen and leave from the system tray. Closing the window keeps the call running.
+- **Push-to-talk:** any key or extra mouse button, and it works system-wide.
+- **Global mute shortcut:** `Ctrl+Shift+M` / `⌘⇧M` by default.
+- **Screen picker:** share a screen or a single window, with optional system audio on Windows.
 
-Settings are under ⚙ (top-right on the home screen, or in a call).
+**Building installers.** The included GitHub Actions workflow (`.github/workflows/desktop.yml`) builds the Windows `.exe` and macOS `.dmg`. Run it from the **Actions** tab, or push a `desktop-v*` tag. To have the app connect to your server automatically, set a repository variable named `OCAK_SERVER_URL`. Otherwise users enter the address on first launch.
 
-**Try it locally** (with `npm run dev` running):
+To build locally:
 
 ```bash
 cd desktop
 npm install
-npm run dev
+npm pkg set ocak.serverUrl=https://chat.example.com   # optional
+npm run dist:mac    # or dist:win on Windows
 ```
 
-**Build the installers with GitHub Actions** (this builds the Windows `.exe` on a real Windows machine):
+**Distribution.** Installers placed in `deploy/downloads/` are offered to browser users via a download link on the home page.
 
-1. Run `mkdir -p .github/workflows && mv desktop/ci/desktop.yml .github/workflows/`, then push to GitHub.
-2. Optional: add a repository variable named `OCAK_SERVER_URL` (for example `https://chat.yourdomain.com`) so the app connects automatically.
-3. Go to **Actions → Desktop app → Run workflow**, then download the installers from the run's artifacts.
+> Builds are not code-signed. Windows SmartScreen and macOS Gatekeeper will warn on first launch.
+> System audio capture includes all sound the computer plays, including other participants, which can cause echo for them.
 
-To build locally instead, run `npm pkg set ocak.serverUrl=https://chat.yourdomain.com`, then `npm run dist:mac` (on a Mac) or `npm run dist:win` (on Windows).
+## Development
 
-**Give it to friends.** Put the installer in `deploy/downloads/` on the VPS so they can download it from your site.
-
-> The builds aren't code-signed. On Windows, click **More info → Run anyway**. On macOS, right-click → **Open** the first time.
-> **Computer audio** captures everything your PC plays, including your friends' voices, so they may hear themselves. Leave it off unless you're sharing a game or video.
-
-## Project layout
-
-```
-server/src/
-  index.ts          Fastify setup, serves web/dist in production
-  config.ts         env vars (refuses default secrets in production)
-  db.ts             SQLite: just a rooms table (id, password hash, last used)
-  rooms.ts          room ID / password generation and checks
-  routes/rooms.ts   POST /api/rooms, POST /api/rooms/:id/join, GET /api/config
-  protocol.ts       types shared with the web app
-web/src/
-  App.tsx           home ⇄ call
-  identity.ts       device id, name, recent rooms (local storage, no accounts)
-  links.ts          invite links /r/<id>#<password>
-  call.ts           start / join / leave, call quality settings
-  components/       Home, CallView (stage, controls, chat, invite), ScreenPicker, settings
-desktop/src/
-  main.ts           window, tray, permissions, screen picker, IPC
-  overlay.ts        the floating mini overlay (static/overlay.html)
-  hotkeys.ts        system-wide push-to-talk
-deploy/             docker-compose, Caddyfile, LiveKit config, setup.sh
+```bash
+livekit-server --dev                                  # https://docs.livekit.io/home/self-hosting/local/
+cp .env.example .env && npm install && npm run dev    # http://localhost:5173 (live reload)
 ```
 
-## Next
+Desktop app against the dev server: `cd desktop && npm install && npm run dev`. Against the Docker setup, use `npm run dev:docker` instead.
 
-- **Remote control:** a viewer asks to control a shared screen, and the sharer allows or denies it, with a timer and an instant revoke. Only the desktop app can be controlled.
-- Desktop auto-update.
+**Project structure**
+
+```
+server/     Fastify API: room creation, password checks, LiveKit tokens (SQLite)
+web/        React + Vite client
+desktop/    Electron app: overlay, tray, push-to-talk, screen picker
+deploy/     Production Docker Compose, Caddy and LiveKit config, setup script
+```
+
+## Roadmap
+
+- Remote control of a shared screen, with permission requested and granted per session
+- Desktop auto-update

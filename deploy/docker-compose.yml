@@ -1,4 +1,4 @@
-# Run from this folder on the VPS:   ./setup.sh   then   docker compose up -d --build
+# Run from this folder on the server:   ./setup.sh   then   docker compose up -d --build
 #
 # Everything uses host networking: simplest for WebRTC (LiveKit needs lots of UDP ports),
 # and the host firewall (ufw) applies normally. Only Caddy (80/443) and LiveKit's media

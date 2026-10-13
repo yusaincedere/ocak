@@ -2,7 +2,7 @@
   "name": "ocak",
   "version": "0.1.0",
   "private": true,
-  "description": "Self-hosted chat, voice, video and screen sharing for a small group of friends",
+  "description": "Self-hosted, account-free voice, video and screen sharing",
   "workspaces": [
     "server",
     "web"
