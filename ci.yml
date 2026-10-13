@@ -1,0 +1,119 @@
+# Checks every push and pull request: types, tests, builds and deploy files.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  app:
+    name: Server + web (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  desktop:
+    name: Desktop app
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1 # only type-checking here, no need for Electron itself
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Compile
+        run: npm run build
+
+  deploy:
+    name: Docker + deploy files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: ocak:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Image starts and serves the app
+        run: |
+          docker run -d --name ocak -p 3000:3000 \
+            -e NODE_ENV=development -e HOST=0.0.0.0 ocak:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:3000/api/health && break
+            sleep 1
+          done
+          curl -fsS http://localhost:3000/api/health
+          curl -fsS http://localhost:3000/ | grep -q '<div id="root">'
+          docker logs ocak
+
+      - name: Production image refuses default secrets
+        run: |
+          if docker run --rm ocak:ci; then
+            echo "::error::Image started with default secrets in production mode"
+            exit 1
+          fi
+
+      - name: Compose files are valid
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          printf 'DOMAIN=chat.example.com\nRTC_DOMAIN=rtc.example.com\n' > deploy/.env
+          docker compose -f deploy/docker-compose.yml config --quiet
+
+      - name: Setup script
+        run: |
+          shellcheck deploy/setup.sh
+          cd "$(mktemp -d)"
+          cp "$GITHUB_WORKSPACE"/deploy/setup.sh "$GITHUB_WORKSPACE"/deploy/livekit.yaml.template .
+          printf 'chat.example.com\nrtc.example.com\ntestcode\n' | bash setup.sh
+          grep -q '^CREATE_CODE=testcode$' .env
+          grep -Eq '^  API[A-Za-z0-9]+: [A-Za-z0-9]{32,}$' livekit.yaml # key + long random secret

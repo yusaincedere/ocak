@@ -1,5 +1,7 @@
 # Ocak
 
+[![CI](https://github.com/yusaincedere/ocak/actions/workflows/ci.yml/badge.svg)](https://github.com/yusaincedere/ocak/actions/workflows/ci.yml)
+
 Self-hosted voice, video and screen sharing with no accounts. **Start a call, share the link, talk.**
 
 *Ocak* is Turkish for "hearth", the place people gather around.
@@ -105,6 +107,12 @@ npm run dist:mac    # or dist:win on Windows
 ```bash
 livekit-server --dev                                  # https://docs.livekit.io/home/self-hosting/local/
 cp .env.example .env && npm install && npm run dev    # http://localhost:5173 (live reload)
+```
+
+Checks (the same ones CI runs on every push and pull request):
+
+```bash
+npm run typecheck && npm test && npm run build
 ```
 
 Desktop app against the dev server: `cd desktop && npm install && npm run dev`. Against the Docker setup, use `npm run dev:docker` instead.
