@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import type { CallAction, CallSnapshot, ControlInput, ScreenSource } from '../../web/src/desktop-bridge';
 import { RemoteControl } from './control';
 import { Hotkeys } from './hotkeys';
+import { pageStrings, t } from './i18n';
 import { Overlay } from './overlay';
 import { getSettings, normalizeServerUrl, updateSettings } from './settings';
 
@@ -112,7 +113,7 @@ function createWindow() {
 
   win.webContents.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
     if (isMainFrame && code !== -3 /* aborted */ && !url.startsWith('file://')) {
-      void win?.loadFile(SETUP_PAGE, { query: { error: `Could not reach ${url} (${desc})` } });
+      loadSetup({ error: t('connect.unreachable', { url, error: desc }) });
     }
   });
 
@@ -122,7 +123,12 @@ function createWindow() {
 function loadApp() {
   const url = getSettings().serverUrl;
   if (url) void win?.loadURL(url);
-  else void win?.loadFile(SETUP_PAGE);
+  else loadSetup();
+}
+
+/** The "connect to your server" page, in the app's language. */
+function loadSetup(query: Record<string, string> = {}) {
+  void win?.loadFile(SETUP_PAGE, { query: { ...query, lang: getSettings().language, s: JSON.stringify(pageStrings('setup')) } });
 }
 
 function showWindow() {
@@ -224,7 +230,11 @@ function sendCallAction(action: CallAction) {
 let callState: CallSnapshot | null = null;
 let trayKey: string | null = null;
 
-const overlay = new Overlay(APP_ROOT, (action) => (action === 'open' ? showWindow() : sendCallAction(action)));
+const overlay = new Overlay(
+  APP_ROOT,
+  (action) => (action === 'open' ? showWindow() : sendCallAction(action)),
+  () => pageStrings('overlay'),
+);
 
 const control = new RemoteControl(
   APP_ROOT,
@@ -249,32 +259,39 @@ function updateTray() {
   if (!tray) return;
   const c = callState;
   // Only rebuild when something shown in the menu changed (not on every "who's talking" update).
-  const key = c ? `${c.roomId}|${c.muted}|${c.deafened}|${c.participants.length}` : '';
+  const key = `${getSettings().language}|` + (c ? `${c.roomId}|${c.muted}|${c.deafened}|${c.participants.length}` : '');
   if (key === trayKey) return;
   trayKey = key;
 
-  tray.setToolTip(c ? `Ocak — in call (${c.participants.length})${c.muted ? ' · muted' : ''}` : 'Ocak');
+  tray.setToolTip(c ? t('tray.tooltipInCall', { n: c.participants.length }) + (c.muted ? t('tray.tooltipMuted') : '') : 'Ocak');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       ...(c
         ? ([
-            { label: `In call · ${c.roomId} · ${c.participants.length} ${c.participants.length === 1 ? 'person' : 'people'}`, enabled: false },
-            { label: 'Mute', type: 'checkbox', checked: c.muted, click: () => sendCallAction('toggle-mute') },
-            { label: 'Deafen', type: 'checkbox', checked: c.deafened, click: () => sendCallAction('toggle-deafen') },
-            { label: 'Leave call', click: () => sendCallAction('leave') },
+            {
+              label: t('tray.inCall', {
+                room: c.roomId,
+                n: c.participants.length,
+                people: t(c.participants.length === 1 ? 'tray.person' : 'tray.people'),
+              }),
+              enabled: false,
+            },
+            { label: t('tray.mute'), type: 'checkbox', checked: c.muted, click: () => sendCallAction('toggle-mute') },
+            { label: t('tray.deafen'), type: 'checkbox', checked: c.deafened, click: () => sendCallAction('toggle-deafen') },
+            { label: t('tray.leave'), click: () => sendCallAction('leave') },
             { type: 'separator' },
           ] as Electron.MenuItemConstructorOptions[])
         : []),
-      { label: 'Open Ocak', click: showWindow },
+      { label: t('tray.open'), click: showWindow },
       {
-        label: 'Change server…',
+        label: t('tray.changeServer'),
         click: () => {
           showWindow();
-          void win?.loadFile(SETUP_PAGE, { query: { change: '1' } });
+          loadSetup({ change: '1' });
         },
       },
       { type: 'separator' },
-      { label: 'Quit', click: () => ((quitting = true), app.quit()) },
+      { label: t('tray.quit'), click: () => ((quitting = true), app.quit()) },
     ]),
   );
 }
@@ -287,9 +304,9 @@ function setupIpc() {
   });
 
   ipcMain.handle('ocak:connect', (e, raw: unknown) => {
-    if (!fromTrusted(e) || typeof raw !== 'string') return { ok: false, error: 'Not allowed' };
+    if (!fromTrusted(e) || typeof raw !== 'string') return { ok: false, error: t('connect.notAllowed') };
     const url = normalizeServerUrl(raw);
-    if (!url) return { ok: false, error: 'Enter a valid address. It must use https:// (plain http only works for localhost).' };
+    if (!url) return { ok: false, error: t('connect.invalid') };
     updateSettings({ serverUrl: url });
     setImmediate(loadApp);
     return { ok: true };
@@ -303,6 +320,8 @@ function setupIpc() {
     const next = updateSettings(patch);
     applyHotkeys();
     updateOverlayVisibility();
+    updateTray();
+    overlay.refreshStrings();
     if (next.serverUrl !== before) setImmediate(loadApp);
     return next;
   });
@@ -320,7 +339,7 @@ function setupIpc() {
   ipcMain.handle('ocak:control-confirm', async (e, controllerId: unknown, name: unknown) => {
     if (!fromTrusted(e) || typeof controllerId !== 'string' || typeof name !== 'string')
       return { allow: false, until: null };
-    return control.confirm(controllerId.slice(0, 128), name.slice(0, 64) || 'Someone');
+    return control.confirm(controllerId.slice(0, 128), name.slice(0, 64) || t('control.someone'));
   });
   ipcMain.on('ocak:control-input', (e, controllerId: unknown, input: unknown) => {
     if (!fromTrusted(e) || typeof controllerId !== 'string' || !isControlInput(input)) return;

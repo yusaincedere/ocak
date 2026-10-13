@@ -1,4 +1,12 @@
 import type { CreatedRoom, JoinResult, ServerConfig } from '../../server/src/protocol';
+import { translate, type MessageKey } from './i18n';
+
+/** Server error codes → translated messages (the server's own text is English-only). */
+const ERROR_KEYS: Record<string, MessageKey> = {
+  create_code: 'error.wrongCode',
+  password: 'error.wrongPassword',
+  not_found: 'error.notFound',
+};
 
 export class ApiError extends Error {
   constructor(
@@ -20,11 +28,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
-    throw new ApiError(0, "Can't reach the server. Check your connection.");
+    throw new ApiError(0, translate('error.offline'));
   }
   const data = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
   if (!res.ok) {
-    const msg = res.status === 429 ? 'Too many attempts. Wait a minute and try again.' : (data.error ?? 'Something went wrong');
+    const key: MessageKey | undefined =
+      res.status === 429 ? 'error.tooMany' : data.code ? ERROR_KEYS[data.code] : res.status === 400 ? 'error.invalid' : undefined;
+    const msg = key ? translate(key) : (data.error ?? translate('common.somethingWrong'));
     throw new ApiError(res.status, msg, data.code);
   }
   return data as T;

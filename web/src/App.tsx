@@ -5,6 +5,7 @@ import { DesktopSettings } from './components/DesktopSettings';
 import { Home } from './components/Home';
 import { Gear } from './components/Icons';
 import { desktop } from './desktop-bridge';
+import { useT } from './i18n';
 import { roomFromLocation } from './links';
 import { useStore } from './store';
 
@@ -17,12 +18,13 @@ export function App() {
     if (call) setInvite(null);
   }, [call]);
   useDesktopSettingsLoader();
+  const t = useT();
 
   return (
     <>
       {call ? <CallView call={call} /> : <Home invite={invite} />}
       {!call && desktop && (
-        <button className="icon-btn corner" title="Settings" aria-label="Settings" onClick={() => setSettingsOpen(true)}>
+        <button className="icon-btn corner" title={t('common.settings')} aria-label={t('common.settings')} onClick={() => setSettingsOpen(true)}>
           <Gear />
         </button>
       )}

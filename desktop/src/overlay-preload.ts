@@ -6,6 +6,9 @@ contextBridge.exposeInMainWorld('ocakOverlay', {
   onState(cb: (s: CallSnapshot | null) => void) {
     ipcRenderer.on('ocak-overlay:state', (_e: IpcRendererEvent, s: CallSnapshot | null) => cb(s));
   },
+  onStrings(cb: (s: Record<string, string>) => void) {
+    ipcRenderer.on('ocak-overlay:strings', (_e: IpcRendererEvent, s: Record<string, string>) => cb(s));
+  },
   act(action: 'toggle-mute' | 'toggle-deafen' | 'leave' | 'open') {
     ipcRenderer.send('ocak-overlay:act', action);
   },

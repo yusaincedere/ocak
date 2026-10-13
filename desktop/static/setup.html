@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' data:" />
@@ -33,17 +33,23 @@
   <body>
     <form id="f">
       <div class="brand"><img src="../build/icon.png" width="32" height="32" alt="" style="border-radius:8px" /> ocak</div>
-      <h1>Connect to your server</h1>
-      <p>Enter the address of your Ocak server.</p>
+      <h1 data-t="title">Connect to your server</h1>
+      <p data-t="intro">Enter the address of your Ocak server.</p>
       <label>
-        Server address
+        <span data-t="address">Server address</span>
         <input id="url" placeholder="chat.example.com" autofocus required />
       </label>
       <p id="error" class="error" hidden></p>
-      <button>Connect</button>
+      <button data-t="connect">Connect</button>
     </form>
     <script>
       const q = new URLSearchParams(location.search);
+      // Translated labels come from the app (see desktop/src/i18n.ts).
+      try {
+        const s = JSON.parse(q.get('s') || '{}');
+        for (const el of document.querySelectorAll('[data-t]')) if (s[el.dataset.t]) el.textContent = s[el.dataset.t];
+        if (q.get('lang')) document.documentElement.lang = q.get('lang');
+      } catch {}
       const err = document.getElementById('error');
       const input = document.getElementById('url');
       if (q.get('error')) { err.textContent = q.get('error'); err.hidden = false; }

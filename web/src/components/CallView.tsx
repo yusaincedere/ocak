@@ -8,9 +8,10 @@ import {
   useRoomContext,
 } from '@livekit/components-react';
 import { ConnectionState, RoomEvent } from 'livekit-client';
-import { Fragment, useEffect, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { leaveCall, roomOptions } from '../call';
 import { desktop } from '../desktop-bridge';
+import { translate, useT } from '../i18n';
 import { roomLink } from '../links';
 import { sounds } from '../sounds';
 import { useStore, type Call } from '../store';
@@ -41,14 +42,14 @@ export function CallView({ call }: { call: Call }) {
         // Still "in" the call in our state = we didn't press leave.
         if (useStore.getState().call) {
           leaveCall();
-          useStore.getState().setNotice('You were disconnected from the call.');
+          useStore.getState().setNotice(translate('call.disconnected'));
         }
       }}
       onError={(err) => {
         // Errors after we pressed leave are just the connection closing.
-        if (useStore.getState().call) useStore.getState().setNotice(`Call problem: ${err.message}`);
+        if (useStore.getState().call) useStore.getState().setNotice(translate('call.problem', { message: err.message }));
       }}
-      onMediaDeviceFailure={() => useStore.getState().setNotice('Your microphone or camera is blocked or used by another app.')}
+      onMediaDeviceFailure={() => useStore.getState().setNotice(translate('call.deviceBlocked'))}
     >
       <RoomAudioRenderer muted={deafened} />
       <DesktopIntegration roomId={call.roomId} />
@@ -67,6 +68,7 @@ function CallLayout({ call }: { call: Call }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const chat = useChat();
   const [seen, setSeen] = useState(0);
+  const t = useT();
 
   // Count unread chat while the panel is closed; ping on messages from others.
   const lastCount = useRef(0);
@@ -83,9 +85,9 @@ function CallLayout({ call }: { call: Call }) {
 
   const status =
     connection === ConnectionState.Connecting
-      ? 'Connecting…'
+      ? t('call.connecting')
       : connection === ConnectionState.Reconnecting || connection === ConnectionState.SignalReconnecting
-        ? 'Reconnecting…'
+        ? t('call.reconnecting')
         : null;
 
   return (
@@ -96,12 +98,12 @@ function CallLayout({ call }: { call: Call }) {
           <InviteButton call={call} />
         </div>
         <span className="muted small">
-          {status ?? `${participants.length} in call`}
+          {status ?? t('call.inCall', { n: participants.length })}
         </span>
         <div className="spacer" />
         <NameChip onRename={(n) => void localParticipant.setName(n).catch(() => {})} />
         {desktop && (
-          <IconButton label="Settings" onClick={() => setSettingsOpen(true)}>
+          <IconButton label={t('common.settings')} onClick={() => setSettingsOpen(true)}>
             <Gear />
           </IconButton>
         )}
@@ -122,7 +124,7 @@ function CallLayout({ call }: { call: Call }) {
         <DeafenButton />
         <CameraButton />
         <ScreenShareButton />
-        <IconButton label={chatOpen ? 'Hide chat' : 'Chat'} active={chatOpen} onClick={() => setChatOpen((v) => !v)} className="chat-btn">
+        <IconButton label={chatOpen ? t('controls.hideChat') : t('controls.chat')} active={chatOpen} onClick={() => setChatOpen((v) => !v)} className="chat-btn">
           <Chat />
           {unread > 0 && <span className="badge">{unread > 9 ? '9+' : unread}</span>}
         </IconButton>
@@ -135,10 +137,11 @@ function CallLayout({ call }: { call: Call }) {
 }
 
 function AloneHint({ call }: { call: Call }) {
+  const t = useT();
   return (
     <div className="alone">
-      <span>You’re the only one here.</span>
-      <CopyButton text={roomLink(call.roomId, call.password)} title="Copy invite link" label="Copy invite link" />
+      <span>{t('call.alone')}</span>
+      <CopyButton text={roomLink(call.roomId, call.password)} title={t('home.copyInvite')} label={t('home.copyInvite')} />
     </div>
   );
 }
@@ -146,6 +149,7 @@ function AloneHint({ call }: { call: Call }) {
 function InviteButton({ call }: { call: Call }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const t = useT();
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
@@ -157,26 +161,26 @@ function InviteButton({ call }: { call: Call }) {
   return (
     <div className="invite" ref={ref}>
       <button className="btn small-btn" onClick={() => setOpen((v) => !v)}>
-        <UserPlus size={15} /> Invite
+        <UserPlus size={15} /> {t('call.invite')}
       </button>
       {open && (
         <div className="popover">
-          <div className="label">Invite link</div>
+          <div className="label">{t('call.inviteLink')}</div>
           <div className="copy-row">
             <input className="field mono" readOnly value={link} onFocus={(e) => e.target.select()} />
-            <CopyButton text={link} title="Copy link" />
+            <CopyButton text={link} title={t('call.copyLink')} />
           </div>
           <div className="pair">
             <div>
-              <div className="label">Room ID</div>
+              <div className="label">{t('call.roomId')}</div>
               <div className="mono big-mono">{call.roomId}</div>
             </div>
             <div>
-              <div className="label">Password</div>
+              <div className="label">{t('call.password')}</div>
               <div className="mono big-mono">{call.password}</div>
             </div>
           </div>
-          <p className="muted small">Anyone with the link can join. No account needed.</p>
+          <p className="muted small">{t('call.inviteNote')}</p>
         </div>
       )}
     </div>
@@ -216,10 +220,12 @@ function linkify(text: string): ReactNode[] {
     ),
   );
 }
-const timeFmt = new Intl.DateTimeFormat(undefined, { hour: '2-digit', minute: '2-digit' });
 
 function ChatPanel({ chat, onClose }: { chat: ReturnType<typeof useChat>; onClose: () => void }) {
   const [text, setText] = useState('');
+  const t = useT();
+  const lang = useStore((s) => s.lang);
+  const timeFmt = useMemo(() => new Intl.DateTimeFormat(lang === 'tr' ? 'tr-TR' : 'en-GB', { hour: '2-digit', minute: '2-digit' }), [lang]);
   const list = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
     if (list.current) list.current.scrollTop = list.current.scrollHeight;
@@ -227,28 +233,28 @@ function ChatPanel({ chat, onClose }: { chat: ReturnType<typeof useChat>; onClos
 
   const send = async (e: FormEvent) => {
     e.preventDefault();
-    const t = text.trim();
-    if (!t) return;
+    const msg = text.trim();
+    if (!msg) return;
     setText('');
     try {
-      await chat.send(t);
+      await chat.send(msg);
     } catch {
-      useStore.getState().setNotice('Message not sent');
+      useStore.getState().setNotice(t('chat.notSent'));
     }
   };
 
   return (
     <aside className="chat-panel">
       <header>
-        <strong>Chat</strong>
-        <span className="muted small">Only people in this call see it</span>
+        <strong>{t('chat.title')}</strong>
+        <span className="muted small">{t('chat.subtitle')}</span>
         <div className="spacer" />
-        <IconButton label="Close chat" onClick={onClose}>
+        <IconButton label={t('chat.close')} onClick={onClose}>
           <X size={16} />
         </IconButton>
       </header>
       <div className="chat-list" ref={list}>
-        {chat.chatMessages.length === 0 && <p className="muted small center">No messages yet.</p>}
+        {chat.chatMessages.length === 0 && <p className="muted small center">{t('chat.empty')}</p>}
         {chat.chatMessages.map((m, i) => {
           const prev = chat.chatMessages[i - 1];
           const grouped = prev && prev.from?.identity === m.from?.identity && m.timestamp - prev.timestamp < 120_000;
@@ -256,7 +262,7 @@ function ChatPanel({ chat, onClose }: { chat: ReturnType<typeof useChat>; onClos
             <div key={m.id ?? i} className={`chat-msg${grouped ? ' grouped' : ''}`}>
               {!grouped && (
                 <div className="chat-head">
-                  <strong>{m.from?.isLocal ? 'You' : (m.from?.name ?? 'Someone')}</strong>
+                  <strong>{m.from?.isLocal ? t('common.you') : m.from?.name || t('common.someone')}</strong>
                   <span className="muted small">{timeFmt.format(m.timestamp)}</span>
                 </div>
               )}
@@ -266,8 +272,8 @@ function ChatPanel({ chat, onClose }: { chat: ReturnType<typeof useChat>; onClos
         })}
       </div>
       <form className="chat-input" onSubmit={send}>
-        <input className="field" value={text} onChange={(e) => setText(e.target.value)} placeholder="Message" autoFocus />
-        <IconButton label="Send" onClick={() => {}} disabled={!text.trim()}>
+        <input className="field" value={text} onChange={(e) => setText(e.target.value)} placeholder={t('chat.placeholder')} autoFocus />
+        <IconButton label={t('chat.send')} onClick={() => {}} disabled={!text.trim()}>
           <Send size={16} />
         </IconButton>
       </form>

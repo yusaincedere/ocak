@@ -1,5 +1,6 @@
 import { ScreenSharePresets, VideoPresets, type RoomOptions, type ScreenShareCaptureOptions } from 'livekit-client';
 import { api } from './api';
+import { translate } from './i18n';
 import { deviceId, getCreateCode, rememberRoom } from './identity';
 import { roomLink } from './links';
 import { useStore } from './store';
@@ -35,7 +36,7 @@ export async function startCall(createCode = getCreateCode()) {
 /** Join a room by ID + password. Throws ApiError on a wrong password / unknown room. */
 export async function joinCall(roomId: string, password: string) {
   const name = useStore.getState().name;
-  if (!name) throw new Error('Pick a name first');
+  if (!name) throw new Error(translate('error.pickName'));
   const res = await api.joinRoom(roomId, { password, name, deviceId: deviceId() });
   rememberRoom(res.roomId, password);
   // Put the invite link in the address bar so a refresh rejoins and copying the URL works.

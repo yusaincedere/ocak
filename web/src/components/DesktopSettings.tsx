@@ -1,6 +1,8 @@
 import { useState, type KeyboardEvent } from 'react';
 import { desktop, type DesktopSettings as Settings } from '../desktop-bridge';
+import { translate, useT } from '../i18n';
 import { useStore } from '../store';
+import { LanguageSwitch } from './Home';
 
 const isMac = desktop?.platform === 'darwin';
 
@@ -27,6 +29,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
   const [recordingMute, setRecordingMute] = useState(false);
   const [server, setServer] = useState(settings?.serverUrl ?? '');
   const [serverError, setServerError] = useState<string | null>(null);
+  const t = useT();
 
   if (!desktop || !settings) return null;
 
@@ -40,7 +43,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
     try {
       const b = await desktop!.captureHotkey();
       if (b) await save({ pttBinding: b, pushToTalk: true });
-      else if (!settings.pttBinding) useStore.getState().setNotice('No key captured. Push-to-talk may be unavailable on this system.');
+      else if (!settings.pttBinding) useStore.getState().setNotice(translate('settings.noKey'));
     } finally {
       setCapturing(false);
     }
@@ -48,15 +51,20 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal settings" role="dialog" aria-label="Desktop settings">
+      <div className="modal settings" role="dialog" aria-label={t('settings.title')}>
         <header className="modal-head">
-          <h2>Settings</h2>
+          <h2>{t('settings.title')}</h2>
         </header>
 
         <section className="setting">
+          <h3>{t('settings.language')}</h3>
+          <LanguageSwitch />
+        </section>
+
+        <section className="setting">
           <div>
-            <h3>Push-to-talk</h3>
-            <p className="muted">Your mic only transmits while you hold the key - even when Ocak is in the background.</p>
+            <h3>{t('settings.ptt')}</h3>
+            <p className="muted">{t('settings.pttDesc')}</p>
           </div>
           <label className="switch">
             <input
@@ -71,27 +79,24 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
           </label>
         </section>
         <section className="setting sub">
-          <span className="muted">Key</span>
+          <span className="muted">{t('settings.key')}</span>
           <button className="btn key" onClick={bindKey} disabled={capturing}>
-            {capturing ? 'Press any key or mouse button… (Esc to cancel)' : (settings.pttBinding?.label ?? 'Choose a key')}
+            {capturing ? t('settings.pressKey') : (settings.pttBinding?.label ?? t('settings.chooseKey'))}
           </button>
         </section>
         {isMac && (
-          <p className="hint">
-            On macOS, allow Ocak under System Settings → Privacy &amp; Security → Accessibility for push-to-talk to work in
-            other apps.
-          </p>
+          <p className="hint">{t('settings.macAccessibility')}</p>
         )}
 
         <section className="setting">
           <div>
-            <h3>Mute shortcut</h3>
-            <p className="muted">Toggle your mic from anywhere.</p>
+            <h3>{t('settings.muteShortcut')}</h3>
+            <p className="muted">{t('settings.muteShortcutDesc')}</p>
           </div>
           <input
             className={`accel${recordingMute ? ' recording' : ''}`}
             readOnly
-            value={recordingMute ? 'Press keys…' : prettyAccel(settings.muteShortcut)}
+            value={recordingMute ? t('settings.pressKeys') : prettyAccel(settings.muteShortcut)}
             onFocus={() => setRecordingMute(true)}
             onBlur={() => setRecordingMute(false)}
             onKeyDown={(e) => {
@@ -108,8 +113,8 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
 
         <section className="setting">
           <div>
-            <h3>Mini overlay</h3>
-            <p className="muted">A small floating panel with who's talking and mute / deafen / leave, shown while you're in another app.</p>
+            <h3>{t('settings.overlay')}</h3>
+            <p className="muted">{t('settings.overlayDesc')}</p>
           </div>
           <label className="switch">
             <input type="checkbox" checked={settings.overlay} onChange={(e) => void save({ overlay: e.target.checked })} />
@@ -120,8 +125,8 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
         {!isMac && (
           <section className="setting">
             <div>
-              <h3>Keep running in the tray</h3>
-              <p className="muted">Closing the window keeps you connected. Quit from the tray icon.</p>
+              <h3>{t('settings.tray')}</h3>
+              <p className="muted">{t('settings.trayDesc')}</p>
             </div>
             <label className="switch">
               <input type="checkbox" checked={settings.closeToTray} onChange={(e) => void save({ closeToTray: e.target.checked })} />
@@ -131,28 +136,28 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
         )}
 
         <section className="setting column">
-          <h3>Server</h3>
+          <h3>{t('settings.server')}</h3>
           <form
             className="server-row"
             onSubmit={async (e) => {
               e.preventDefault();
               setServerError(null);
               const res = await desktop!.connect(server);
-              if (!res.ok) setServerError(res.error ?? 'Invalid address');
+              if (!res.ok) setServerError(res.error ?? t('settings.invalidAddress'));
             }}
           >
             <input value={server} onChange={(e) => setServer(e.target.value)} />
             <button className="btn" disabled={server === settings.serverUrl}>
-              Switch
+              {t('settings.switch')}
             </button>
           </form>
           {serverError && <p className="form-error">{serverError}</p>}
         </section>
 
         <footer className="modal-foot">
-          <span className="muted small">Ocak desktop {desktop.version}</span>
+          <span className="muted small">{t('settings.version', { version: desktop.version })}</span>
           <button className="btn primary" onClick={onClose}>
-            Done
+            {t('common.done')}
           </button>
         </footer>
       </div>

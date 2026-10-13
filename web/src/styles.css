@@ -868,6 +868,40 @@ a {
   text-decoration: underline;
 }
 
+.lang-switch {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+.lang-switch > * + *::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--text-3);
+}
+.lang-switch button {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.lang-switch button:hover {
+  color: var(--text);
+}
+.lang-switch button.on {
+  color: var(--text);
+  font-weight: 600;
+  cursor: default;
+}
+.setting .lang-switch {
+  margin: 0;
+  font-size: 13px;
+}
+
 /* ---------- Remote control ---------- */
 
 .control-pill {

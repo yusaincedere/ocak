@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { desktop, type ScreenSource } from '../desktop-bridge';
+import { useT } from '../i18n';
 import { Screen } from './Icons';
 
 /**
@@ -11,6 +12,7 @@ export function ScreenPicker() {
   const [tab, setTab] = useState<'screen' | 'window'>('screen');
   const [selected, setSelected] = useState<string | null>(null);
   const [withAudio, setWithAudio] = useState(false);
+  const t = useT();
 
   useEffect(
     () =>
@@ -40,15 +42,15 @@ export function ScreenPicker() {
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && answer(null)}>
-      <div className="modal picker" role="dialog" aria-label="Choose what to share">
+      <div className="modal picker" role="dialog" aria-label={t('picker.title')}>
         <header className="modal-head">
-          <h2>Share your screen</h2>
+          <h2>{t('picker.title')}</h2>
           <div className="tabs">
             <button className={tab === 'screen' ? 'on' : ''} onClick={() => setTab('screen')}>
-              Screens
+              {t('picker.screens')}
             </button>
             <button className={tab === 'window' ? 'on' : ''} onClick={() => setTab('window')}>
-              Applications
+              {t('picker.apps')}
             </button>
           </div>
         </header>
@@ -68,24 +70,24 @@ export function ScreenPicker() {
               </span>
             </button>
           ))}
-          {shown.length === 0 && <p className="muted">Nothing to show here.</p>}
+          {shown.length === 0 && <p className="muted">{t('picker.empty')}</p>}
         </div>
 
         <footer className="modal-foot">
           {desktop.canShareSystemAudio ? (
-            <label className="check" title="Includes everything your computer plays - including other people's voices in this call.">
+            <label className="check" title={t('picker.audioHint')}>
               <input type="checkbox" checked={withAudio} onChange={(e) => setWithAudio(e.target.checked)} />
-              Share computer audio
+              {t('picker.audio')}
             </label>
           ) : (
             <span />
           )}
           <div className="modal-actions">
             <button className="btn subtle" onClick={() => answer(null)}>
-              Cancel
+              {t('common.cancel')}
             </button>
             <button className="btn primary" disabled={!selected} onClick={() => answer(selected)}>
-              <Screen size={16} /> Go live
+              <Screen size={16} /> {t('picker.goLive')}
             </button>
           </div>
         </footer>

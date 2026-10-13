@@ -50,6 +50,8 @@ export interface DesktopSettings {
   closeToTray: boolean;
   /** Show the small floating call overlay while Ocak is in the background. */
   overlay: boolean;
+  /** UI language of the app's own windows (tray, overlay, dialogs); follows the page. */
+  language: 'tr' | 'en';
 }
 
 /** Snapshot of the call, sent to the desktop app for the overlay and tray menu. */

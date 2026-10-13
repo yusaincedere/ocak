@@ -2,6 +2,7 @@ import { MediaDeviceMenu, useLocalParticipant, useTrackToggle } from '@livekit/c
 import { Track } from 'livekit-client';
 import { useCallback, type ReactNode } from 'react';
 import { leaveCall, screenShareOptions } from '../call';
+import { translate, useT, type MessageKey } from '../i18n';
 import { sounds } from '../sounds';
 import { useStore } from '../store';
 import { Headphones, HeadphonesOff, Mic, MicOff, PhoneOff, Screen, Video } from './Icons';
@@ -39,9 +40,11 @@ export function IconButton({
   );
 }
 
-const reportDeviceError = (what: string) => (err: Error) => {
+type Device = 'microphone' | 'camera' | 'screen';
+const reportDeviceError = (what: Device) => (err: Error) => {
   console.warn(err);
-  useStore.getState().setNotice(`Couldn't start your ${what}: ${err.message}`);
+  const device = translate(`controls.device.${what}` as MessageKey);
+  useStore.getState().setNotice(translate('controls.deviceError', { device, message: err.message }));
 };
 
 // Deafen also mutes the mic and remembers whether to turn it back on (like Discord).
@@ -81,12 +84,13 @@ export function MicButton() {
     onDeviceError: reportDeviceError('microphone'),
   });
   const toggle = useToggleMute();
+  const t = useT();
   return (
     <div className="device-group">
-      <IconButton label={enabled ? 'Mute' : 'Unmute'} off={!enabled} disabled={pending} onClick={toggle}>
+      <IconButton label={enabled ? t('controls.mute') : t('controls.unmute')} off={!enabled} disabled={pending} onClick={toggle}>
         {enabled ? <Mic /> : <MicOff />}
       </IconButton>
-      <MediaDeviceMenu kind="audioinput" title="Microphone" />
+      <MediaDeviceMenu kind="audioinput" title={t('controls.microphone')} />
     </div>
   );
 }
@@ -96,12 +100,13 @@ export function CameraButton() {
     source: Track.Source.Camera,
     onDeviceError: reportDeviceError('camera'),
   });
+  const t = useT();
   return (
     <div className="device-group">
-      <IconButton label={enabled ? 'Turn camera off' : 'Turn camera on'} active={enabled} disabled={pending} onClick={() => void toggle()}>
+      <IconButton label={enabled ? t('controls.cameraOff') : t('controls.cameraOn')} active={enabled} disabled={pending} onClick={() => void toggle()}>
         <Video />
       </IconButton>
-      <MediaDeviceMenu kind="videoinput" title="Camera" />
+      <MediaDeviceMenu kind="videoinput" title={t('controls.camera')} />
     </div>
   );
 }
@@ -112,11 +117,12 @@ export function ScreenShareButton() {
     captureOptions: screenShareOptions,
     onDeviceError: (err) => {
       // Cancelling the picker is not an error worth showing.
-      if (err.name !== 'NotAllowedError') reportDeviceError('screen share')(err);
+      if (err.name !== 'NotAllowedError') reportDeviceError('screen')(err);
     },
   });
+  const t = useT();
   return (
-    <IconButton label={enabled ? 'Stop sharing' : 'Share your screen'} active={enabled} disabled={pending} onClick={() => void toggle()}>
+    <IconButton label={enabled ? t('controls.stopSharing') : t('controls.shareScreen')} active={enabled} disabled={pending} onClick={() => void toggle()}>
       <Screen />
     </IconButton>
   );
@@ -125,16 +131,18 @@ export function ScreenShareButton() {
 export function DeafenButton() {
   const deafened = useStore((s) => s.deafened);
   const toggle = useDeafen();
+  const t = useT();
   return (
-    <IconButton label={deafened ? 'Undeafen' : 'Deafen'} off={deafened} onClick={toggle}>
+    <IconButton label={deafened ? t('controls.undeafen') : t('controls.deafen')} off={deafened} onClick={toggle}>
       {deafened ? <HeadphonesOff /> : <Headphones />}
     </IconButton>
   );
 }
 
 export function LeaveButton() {
+  const t = useT();
   return (
-    <IconButton label="Leave call" danger onClick={leaveCall} className="leave">
+    <IconButton label={t('controls.leave')} danger onClick={leaveCall} className="leave">
       <PhoneOff />
     </IconButton>
   );

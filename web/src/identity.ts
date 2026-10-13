@@ -6,6 +6,7 @@ const KEY = {
   name: 'ocak.name',
   rooms: 'ocak.rooms',
   createCode: 'ocak.createCode',
+  lang: 'ocak.lang',
 };
 
 const memory = new Map<string, string>(); // fallback when storage is blocked (private mode etc.)
@@ -42,6 +43,10 @@ export function deviceId(): string {
 
 export const getName = () => read(KEY.name);
 export const setName = (name: string) => write(KEY.name, name.trim().slice(0, 32));
+
+/** UI language; Turkish unless the user picked English. */
+export const getLang = (): 'tr' | 'en' => (read(KEY.lang) === 'en' ? 'en' : 'tr');
+export const setLang = (lang: 'tr' | 'en') => write(KEY.lang, lang);
 
 export const getCreateCode = () => read(KEY.createCode);
 export const setCreateCode = (code: string | null) => write(KEY.createCode, code);

@@ -42,11 +42,3 @@ export function parseControl(payload: Uint8Array): ControlMessage | null {
 }
 
 export const isControllable = (p: Participant) => p.attributes?.[CONTROL_ATTRIBUTE] === 'screen';
-
-export const endReasonText: Record<string, string> = {
-  stopped: 'stopped remote control',
-  expired: 'remote control time ran out',
-  'share-ended': 'stopped sharing their screen',
-  left: 'left the call',
-  cancelled: 'cancelled',
-};

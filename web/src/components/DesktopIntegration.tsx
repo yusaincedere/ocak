@@ -3,6 +3,7 @@ import { ConnectionState, createLocalAudioTrack, Track } from 'livekit-client';
 import { useEffect } from 'react';
 import { leaveCall, roomOptions } from '../call';
 import { desktop, type CallSnapshot } from '../desktop-bridge';
+import { translate } from '../i18n';
 import { useStore } from '../store';
 import { useDeafen, useToggleMute } from './VoiceControls';
 
@@ -20,6 +21,17 @@ export function useDesktopSettingsLoader() {
       .then((s) => s && useStore.getState().setDesktopSettings(s))
       .catch(() => {});
   }, []);
+
+  // Keep the desktop app's own UI (tray, overlay, dialogs) in the same language as the page.
+  const lang = useStore((s) => s.lang);
+  const desktopLang = useStore((s) => s.desktopSettings?.language);
+  useEffect(() => {
+    if (!desktop || !desktopLang || desktopLang === lang) return;
+    desktop
+      .setSettings({ language: lang })
+      .then((s) => s && useStore.getState().setDesktopSettings(s))
+      .catch(() => {});
+  }, [lang, desktopLang]);
 }
 
 /**
@@ -57,7 +69,7 @@ export function DesktopIntegration({ roomId }: { roomId: string }) {
       deafened,
       participants: participants.map((p) => ({
         id: p.identity,
-        name: p.name || 'Someone',
+        name: p.name || translate('common.someone'),
         speaking: p.isSpeaking,
         muted: !p.isMicrophoneEnabled,
         isLocal: p.isLocal,
@@ -86,7 +98,7 @@ export function DesktopIntegration({ roomId }: { roomId: string }) {
         await localParticipant.publishTrack(track, { source: Track.Source.Microphone });
       } catch (err) {
         console.warn(err);
-        useStore.getState().setNotice('Could not start your microphone for push-to-talk.');
+        useStore.getState().setNotice(translate('settings.pttMicError'));
       }
     })();
     return () => {

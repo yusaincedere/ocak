@@ -24,6 +24,7 @@ const defaults = (): DesktopSettings => ({
   muteShortcut: 'CommandOrControl+Shift+M',
   closeToTray: true,
   overlay: true,
+  language: 'tr',
 });
 
 let current: DesktopSettings | null = null;
@@ -65,6 +66,7 @@ function sanitize(input: unknown): Partial<DesktopSettings> {
   if (typeof p.pushToTalk === 'boolean') out.pushToTalk = p.pushToTalk;
   if (typeof p.closeToTray === 'boolean') out.closeToTray = p.closeToTray;
   if (typeof p.overlay === 'boolean') out.overlay = p.overlay;
+  if (p.language === 'tr' || p.language === 'en') out.language = p.language;
   if (typeof p.muteShortcut === 'string' && p.muteShortcut.length <= 60) out.muteShortcut = p.muteShortcut;
   if (p.pttBinding === null) out.pttBinding = null;
   else if (isBinding(p.pttBinding)) out.pttBinding = p.pttBinding;

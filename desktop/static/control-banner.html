@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
@@ -27,12 +27,15 @@
   <body>
     <div class="bar">
       <span class="dot"></span>
-      <span class="text"><span id="name"></span> is controlling your screen <span class="hint" id="hint"></span></span>
-      <button id="stop">Stop</button>
+      <span class="text"><span id="msg"></span> <span class="hint" id="hint"></span></span>
+      <button id="stop"></button>
     </div>
     <script>
       const q = new URLSearchParams(location.search);
-      document.getElementById('name').textContent = q.get('name') || 'Someone';
+      // The app passes the finished, translated text; names only ever go through textContent.
+      document.documentElement.lang = q.get('lang') || 'tr';
+      document.getElementById('msg').textContent = q.get('text') || '';
+      document.getElementById('stop').textContent = q.get('stop') || 'Stop';
       document.getElementById('hint').textContent = q.get('shortcut') ? `· ${q.get('shortcut')}` : '';
       document.getElementById('stop').onclick = () => ocakBanner.stop();
     </script>

@@ -20,6 +20,8 @@ export class Overlay {
   constructor(
     private appRoot: string,
     private onAction: (a: CallAction | 'open') => void,
+    /** Translated labels for the overlay page (it has no i18n of its own). */
+    private getStrings: () => Record<string, string>,
   ) {
     ipcMain.on('ocak-overlay:act', (e, action: unknown) => {
       if (!this.win || e.sender !== this.win.webContents) return;
@@ -37,6 +39,11 @@ export class Overlay {
     this.state = state;
     this.win?.webContents.send('ocak-overlay:state', state);
     this.sync();
+  }
+
+  /** Re-send the labels after the language changed. */
+  refreshStrings() {
+    this.win?.webContents.send('ocak-overlay:strings', this.getStrings());
   }
 
   /** Whether the overlay *should* be visible (main window in background + setting on). */
@@ -93,7 +100,10 @@ export class Overlay {
         /* ignore */
       }
     });
-    win.webContents.on('did-finish-load', () => win.webContents.send('ocak-overlay:state', this.state));
+    win.webContents.on('did-finish-load', () => {
+      win.webContents.send('ocak-overlay:strings', this.getStrings());
+      win.webContents.send('ocak-overlay:state', this.state);
+    });
     void win.loadFile(join(this.appRoot, 'static', 'overlay.html'));
     this.win = win;
     return win;

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="tr">
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
@@ -49,13 +49,13 @@
       <header>
         <span class="live"></span>
         <span id="room"></span>
-        <button id="open" title="Open Ocak"></button>
+        <button id="open"></button>
       </header>
       <ul id="people"></ul>
       <footer>
-        <button id="mute" title="Mute"></button>
-        <button id="deafen" title="Deafen"></button>
-        <button id="leave" class="leave" title="Leave call"></button>
+        <button id="mute"></button>
+        <button id="deafen"></button>
+        <button id="leave" class="leave"></button>
       </footer>
     </div>
     <script>
@@ -79,16 +79,27 @@
       $('deafen').onclick = () => ocakOverlay.act('toggle-deafen');
       $('leave').onclick = () => ocakOverlay.act('leave');
 
+      // Labels arrive from the app in its language (Turkish until told otherwise).
+      let T = { mute: 'Sessize al', unmute: 'Sesi aç', deafen: 'Sağırlaştır', undeafen: 'Sağırlaştırmayı kapat', leave: 'Görüşmeden ayrıl', open: "Ocak'ı aç", you: '(sen)', more: '+{n} kişi daha', live: 'CANLI' };
+      let last = null;
+      function applyStrings(s) {
+        T = { ...T, ...s };
+        $('open').title = T.open;
+        $('leave').title = T.leave;
+        render(last);
+      }
+
       const MAX = 8;
       function render(s) {
+        last = s;
         if (!s) return;
         $('room').textContent = s.roomId;
         $('mute').innerHTML = s.muted ? I.micOff : I.mic;
         $('mute').className = s.muted ? 'off' : '';
-        $('mute').title = s.muted ? 'Unmute' : 'Mute';
+        $('mute').title = s.muted ? T.unmute : T.mute;
         $('deafen').innerHTML = s.deafened ? I.headOff : I.head;
         $('deafen').className = s.deafened ? 'off' : '';
-        $('deafen').title = s.deafened ? 'Undeafen' : 'Deafen';
+        $('deafen').title = s.deafened ? T.undeafen : T.deafen;
 
         // Talking people first, then everyone else in join order.
         const people = [...s.participants].sort((a, b) => Number(b.speaking) - Number(a.speaking));
@@ -102,13 +113,13 @@
           av.textContent = (p.name || '?').trim().slice(0, 1).toUpperCase();
           const name = document.createElement('span');
           name.className = 'name';
-          name.textContent = p.isLocal ? `${p.name} (you)` : p.name;
+          name.textContent = p.isLocal ? `${p.name} ${T.you}` : p.name;
           const flags = document.createElement('span');
           flags.className = 'flags';
           if (p.sharing) {
             const t = document.createElement('span');
             t.className = 'tag';
-            t.textContent = 'LIVE';
+            t.textContent = T.live;
             flags.append(t);
           }
           if (p.muted) flags.insertAdjacentHTML('beforeend', I.smallOff);
@@ -118,11 +129,12 @@
         if (people.length > MAX) {
           const more = document.createElement('li');
           more.className = 'more';
-          more.textContent = `+${people.length - MAX} more`;
+          more.textContent = T.more.replace('{n}', people.length - MAX);
           ul.append(more);
         }
         requestAnimationFrame(() => ocakOverlay.setHeight($('panel').offsetHeight + 2));
       }
+      ocakOverlay.onStrings(applyStrings);
       ocakOverlay.onState(render);
     </script>
   </body>

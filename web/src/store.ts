@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { DesktopSettings } from './desktop-bridge';
-import { getName } from './identity';
+import { getLang, getName, setLang as saveLang } from './identity';
+import type { Lang } from './i18n';
 
 export interface Call {
   roomId: string;
@@ -10,6 +11,7 @@ export interface Call {
 }
 
 interface State {
+  lang: Lang;
   name: string | null;
   call: Call | null;
   deafened: boolean;
@@ -19,6 +21,7 @@ interface State {
   /** Push-to-talk key is currently held. */
   pttActive: boolean;
 
+  setLang: (l: Lang) => void;
   setName: (n: string) => void;
   setCall: (c: Call | null) => void;
   setDeafened: (d: boolean) => void;
@@ -28,6 +31,7 @@ interface State {
 }
 
 export const useStore = create<State>((set) => ({
+  lang: getLang(),
   name: getName(),
   call: null,
   deafened: false,
@@ -35,6 +39,11 @@ export const useStore = create<State>((set) => ({
   desktopSettings: null,
   pttActive: false,
 
+  setLang: (lang) => {
+    saveLang(lang);
+    document.documentElement.lang = lang;
+    set({ lang });
+  },
   setName: (name) => set({ name }),
   setCall: (call) => set((s) => ({ call, deafened: call ? s.deafened : false, pttActive: false })),
   setDeafened: (deafened) => set({ deafened }),

@@ -1,7 +1,9 @@
 import { BrowserWindow, dialog, globalShortcut, ipcMain, screen, systemPreferences, type Display } from 'electron';
 import { join } from 'node:path';
 import type { ControlEndReason, ControlInput } from '../../web/src/desktop-bridge';
+import { t } from './i18n';
 import { planKey } from './keys';
+import { getSettings } from './settings';
 
 // @jitsi/robotjs moves the real mouse and presses real keys. It's a native module
 // (prebuilt for Windows/macOS/Linux), loaded lazily so the app still runs without it.
@@ -75,9 +77,9 @@ export class RemoteControl {
 
   async confirm(controllerId: string, name: string): Promise<{ allow: boolean; until: number | null; error?: string }> {
     const deny = (error?: string) => ({ allow: false, until: null, error });
-    if (this.session) return deny('Someone is already controlling this screen.');
-    if (this.share?.kind !== 'screen') return deny('Only a whole-screen share can be controlled.');
-    if (!loadRobot()) return deny('Remote control is not available on this computer.');
+    if (this.session) return deny(t('control.busy'));
+    if (this.share?.kind !== 'screen') return deny(t('control.onlyScreen'));
+    if (!loadRobot()) return deny(t('control.unavailable'));
 
     const win = this.getWindow();
     if (win) {
@@ -91,13 +93,13 @@ export class RemoteControl {
     const timeout = setTimeout(() => abort.abort(), ASK_TIMEOUT_MS);
     const options: Electron.MessageBoxOptions = {
       type: 'question',
-      buttons: ['Allow for 10 minutes', 'Allow until I stop it', 'Deny'],
+      buttons: [t('control.allow10'), t('control.allowUntilStop'), t('control.deny')],
       defaultId: 2,
       cancelId: 2,
       noLink: true,
-      title: 'Remote control request',
-      message: `${name} wants to control your screen`,
-      detail: `They will be able to move your mouse, click and type on this computer.\n\nYou can stop it at any time with the red bar at the top of the screen or ${shortcut}.`,
+      title: t('control.title'),
+      message: t('control.message', { name }),
+      detail: t('control.detail', { shortcut }),
       signal: abort.signal,
     };
     let response: number;
@@ -110,7 +112,7 @@ export class RemoteControl {
 
     // macOS needs the Accessibility permission to send input; this opens the prompt.
     if (process.platform === 'darwin' && !systemPreferences.isTrustedAccessibilityClient(true)) {
-      return deny('Allow Ocak in System Settings → Privacy & Security → Accessibility, then try again.');
+      return deny(t('control.macAccessibility'));
     }
     // The share may have stopped while the dialog was open.
     if (this.share?.kind !== 'screen' || this.session) return deny();
@@ -248,7 +250,9 @@ export class RemoteControl {
     win.setAlwaysOnTop(true, 'screen-saver');
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     const shortcut = process.platform === 'darwin' ? '⌘⇧X' : 'Ctrl+Shift+X';
-    void win.loadFile(join(this.appRoot, 'static', 'control-banner.html'), { query: { name, shortcut } });
+    void win.loadFile(join(this.appRoot, 'static', 'control-banner.html'), {
+      query: { text: t('banner.text', { name }), stop: t('banner.stop'), shortcut, lang: getSettings().language },
+    });
     win.once('ready-to-show', () => win.showInactive());
     this.banner = win;
   }

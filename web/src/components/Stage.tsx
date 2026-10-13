@@ -14,6 +14,7 @@ import {
 } from '@livekit/components-react';
 import { RoomEvent, Track } from 'livekit-client';
 import { useEffect, useRef } from 'react';
+import { useT } from '../i18n';
 
 const sameTrack = (a?: TrackReferenceOrPlaceholder, b?: TrackReferenceOrPlaceholder) =>
   !!a &&
@@ -24,6 +25,7 @@ const sameTrack = (a?: TrackReferenceOrPlaceholder, b?: TrackReferenceOrPlacehol
 
 /** Video tiles: a grid, or a big focused tile (e.g. a screen share) with a strip of the rest. */
 export function Stage() {
+  const t = useT();
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -71,7 +73,7 @@ export function Stage() {
         </div>
       </LayoutContextProvider>
 
-      <StartAudio label="Click to enable audio" />
+      <StartAudio label={t('call.enableAudio')} />
     </div>
   );
 }

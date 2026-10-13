@@ -8,8 +8,9 @@ import {
 } from '@livekit/components-react';
 import { RoomEvent, Track, type RemoteParticipant } from 'livekit-client';
 import { useCallback, useEffect, useRef, useState, type PointerEvent, type WheelEvent } from 'react';
-import { CONTROL_ATTRIBUTE, CONTROL_TOPIC, endReasonText, isControllable, parseControl, sendControl } from '../control';
+import { CONTROL_ATTRIBUTE, CONTROL_TOPIC, isControllable, parseControl, sendControl } from '../control';
 import { desktop, type ControlInput } from '../desktop-bridge';
+import { translate, useT, type MessageKey } from '../i18n';
 import { useStore } from '../store';
 import { X } from './Icons';
 
@@ -23,6 +24,7 @@ export function SharerControl() {
   const [controller, setController] = useState<{ id: string; name: string } | null>(null);
   const controllerRef = useRef(controller);
   controllerRef.current = controller;
+  const t = useT();
 
   // Advertise "my whole screen can be controlled" while sharing a screen (not a window).
   useEffect(() => {
@@ -49,7 +51,7 @@ export function SharerControl() {
         const c = controllerRef.current;
         if (c) void sendControl(localParticipant, c.id, { t: 'ended', reason });
         setController(null);
-        useStore.getState().setNotice(c ? `Remote control by ${c.name} ended.` : 'Remote control ended.');
+        useStore.getState().setNotice(c ? translate('control.endedBy', { name: c.name }) : translate('control.ended'));
       }),
     [localParticipant],
   );
@@ -66,7 +68,7 @@ export function SharerControl() {
         if (current?.id === from.identity) desktop!.injectInput(from.identity, msg.e);
       } else if (msg.t === 'request') {
         if (current) return void sendControl(localParticipant, from.identity, { t: 'denied', reason: 'busy' });
-        const name = from.name || 'Someone';
+        const name = from.name || translate('common.someone');
         const res = await desktop!.confirmControl(from.identity, name);
         if (res.allow) {
           setController({ id: from.identity, name });
@@ -94,11 +96,9 @@ export function SharerControl() {
   return (
     <div className="control-banner sharer">
       <span className="rec-dot" />
-      <span>
-        <strong>{controller.name}</strong> is controlling your screen
-      </span>
+      <span>{t('control.beingControlled', { name: controller.name })}</span>
       <button className="btn small-btn" onClick={() => desktop?.stopControl()}>
-        Stop
+        {t('common.stop')}
       </button>
     </div>
   );
@@ -123,6 +123,7 @@ export function ViewerControl() {
   const [state, setState] = useState<ViewerState>({ s: 'idle' });
   const stateRef = useRef(state);
   stateRef.current = state;
+  const t = useT();
 
   const target = screenTracks.find((t) => isControllable(t.participant));
   const activeTrack = state.s === 'idle' ? undefined : screenTracks.find((t) => t.participant.identity === state.id);
@@ -140,10 +141,10 @@ export function ViewerControl() {
         setState({ s: 'idle' });
         useStore
           .getState()
-          .setNotice(msg.reason === 'busy' ? `Someone else is already controlling ${st.name}'s screen.` : `${st.name} didn't allow remote control.`);
+          .setNotice(translate(msg.reason === 'busy' ? 'control.busy' : 'control.denied', { name: st.name }));
       } else if (msg.t === 'ended') {
         setState({ s: 'idle' });
-        useStore.getState().setNotice(`${st.name} ${endReasonText[msg.reason ?? 'stopped'] ?? 'ended remote control'}.`);
+        useStore.getState().setNotice(endReasonText(msg.reason, st.name));
       }
     };
     room.on(RoomEvent.DataReceived, onData);
@@ -158,18 +159,18 @@ export function ViewerControl() {
     const p = participants.find((x) => x.identity === state.id);
     if (!p || !activeTrack || !isControllable(p)) {
       setState({ s: 'idle' });
-      if (state.s === 'controlling') useStore.getState().setNotice(`Remote control of ${state.name}'s screen ended.`);
+      if (state.s === 'controlling') useStore.getState().setNotice(translate('control.endedFor', { name: state.name }));
     }
   }, [participants, activeTrack, state]);
 
   // Give up waiting after a while (their dialog times out too).
   useEffect(() => {
     if (state.s !== 'asking') return;
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setState({ s: 'idle' });
-      useStore.getState().setNotice(`${state.name} didn't answer.`);
+      useStore.getState().setNotice(translate('control.noAnswer', { name: state.name }));
     }, 50_000);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [state]);
 
   const stop = useCallback(() => {
@@ -184,15 +185,15 @@ export function ViewerControl() {
   if (state.s === 'asking')
     return (
       <div className="control-pill">
-        <span>Waiting for {state.name} to allow…</span>
-        <button className="icon-btn small" title="Cancel" onClick={stop}>
+        <span>{t('control.waiting', { name: state.name })}</span>
+        <button className="icon-btn small" title={t('common.cancel')} onClick={stop}>
           <X size={14} />
         </button>
       </div>
     );
 
   if (!target) return null;
-  const name = target.participant.name || 'Someone';
+  const name = target.participant.name || t('common.someone');
   return (
     <button
       className="control-pill request"
@@ -201,7 +202,7 @@ export function ViewerControl() {
         void sendControl(localParticipant, target.participant.identity, { t: 'request' });
       }}
     >
-      <PointerIcon /> Request control of {name}'s screen
+      <PointerIcon /> {t('control.request', { name })}
     </button>
   );
 }
@@ -224,6 +225,7 @@ function ControlSurface({
   const pendingMove = useRef<{ x: number; y: number } | null>(null);
   const frame = useRef(0);
   const [left, setLeft] = useState<number | null>(null);
+  const t = useT();
 
   const send = useCallback((e: ControlInput) => void sendControl(localParticipant, to, { t: 'input', e }), [localParticipant, to]);
 
@@ -307,8 +309,8 @@ function ControlSurface({
     if (!until) return;
     const tick = () => setLeft(Math.max(0, Math.round((until - Date.now()) / 60_000)));
     tick();
-    const t = setInterval(tick, 15_000);
-    return () => clearInterval(t);
+    const timer = setInterval(tick, 15_000);
+    return () => clearInterval(timer);
   }, [until]);
 
   return (
@@ -316,11 +318,11 @@ function ControlSurface({
       <div className="control-bar">
         <span className="rec-dot" />
         <span>
-          You're controlling <strong>{name}</strong>'s screen
-          {left !== null && <span className="muted"> · {left} min left</span>}
+          {t('control.controlling', { name })}
+          {left !== null && <span className="muted"> · {t('control.minutesLeft', { n: left })}</span>}
         </span>
         <button className="btn small-btn" onClick={onStop}>
-          Stop
+          {t('common.stop')}
         </button>
       </div>
       <div
@@ -336,6 +338,10 @@ function ControlSurface({
     </div>
   );
 }
+
+const END_REASONS = ['stopped', 'expired', 'share-ended', 'left', 'cancelled'];
+const endReasonText = (reason: string | undefined, name: string) =>
+  translate(`control.reason.${reason && END_REASONS.includes(reason) ? reason : 'stopped'}` as MessageKey, { name });
 
 function PointerIcon() {
   return (
