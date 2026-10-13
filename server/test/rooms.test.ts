@@ -45,6 +45,13 @@ describe('creating rooms', () => {
     }
   });
 
+  test('accepts the server code regardless of case and extra spaces', async () => {
+    for (const createCode of ['TESTCODE', '  testcode ', 'TestCode']) {
+      const res = await app.inject({ method: 'POST', url: '/api/rooms', payload: { createCode } });
+      assert.equal(res.statusCode, 200, createCode);
+    }
+  });
+
   test('returns a readable id and password', async () => {
     const room = await createRoom();
     assert.match(room.id, /^[a-z2-9]{4}-[a-z2-9]{4}$/);

@@ -8,6 +8,11 @@ import { hashPassword, newRoomId, newRoomPassword, normalizeRoomId, passwordMatc
 
 const createBody = z.object({ createCode: z.string().max(200).optional() });
 
+/** Server codes are typed by people: ignore case and surrounding/inner extra spaces. */
+const normalizeCode = (c: string) => c.trim().replace(/\s+/g, ' ').toLowerCase();
+const sameCode = (given: string | undefined, expected: string) =>
+  given !== undefined && normalizeCode(given) === normalizeCode(expected);
+
 const joinBody = z.object({
   password: z.string().min(1).max(64),
   name: z.string().trim().min(1).max(32),
@@ -24,7 +29,7 @@ export async function roomRoutes(app: FastifyInstance) {
     async (req, reply): Promise<CreatedRoom | undefined> => {
       const body = createBody.safeParse(req.body ?? {});
       if (!body.success) return reply.code(400).send({ error: 'Invalid request' });
-      if (config.createCode && body.data.createCode?.trim() !== config.createCode)
+      if (config.createCode && !sameCode(body.data.createCode, config.createCode))
         return reply.code(403).send({ error: 'Wrong server code', code: 'create_code' });
 
       let id = newRoomId();
