@@ -10,6 +10,7 @@ process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'ocak-test-')), 'test.db')
 process.env.CREATE_CODE = 'testcode';
 process.env.WEB_DIST = '/nonexistent';
 process.env.NODE_ENV = 'test';
+process.env.DESKTOP_DOWNLOAD_URL = 'https://github.com/example/ocak/releases/latest/download/';
 
 let app: FastifyInstance;
 
@@ -134,6 +135,16 @@ describe('abuse protection', () => {
     const row = db.prepare('SELECT password_hash FROM rooms WHERE id = ?').get(room.id) as { password_hash: string };
     assert.notEqual(row.password_hash, room.password);
     assert.ok(!row.password_hash.includes(room.password));
+  });
+});
+
+describe('desktop downloads', () => {
+  test('links point at the configured release location', async () => {
+    const res = await app.inject('/api/desktop-downloads');
+    assert.deepEqual(res.json(), {
+      windows: 'https://github.com/example/ocak/releases/latest/download/Ocak-Setup.exe',
+      mac: 'https://github.com/example/ocak/releases/latest/download/Ocak.dmg',
+    });
   });
 });
 

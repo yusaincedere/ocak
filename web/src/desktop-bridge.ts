@@ -12,6 +12,26 @@ export interface ScreenSource {
   appIcon?: string;
 }
 
+/** One input event from the person controlling a shared screen. x/y are 0..1 within the shared screen. */
+export type ControlInput =
+  | { t: 'move'; x: number; y: number }
+  | { t: 'button'; button: 'left' | 'right' | 'middle'; down: boolean; x: number; y: number }
+  | { t: 'wheel'; dx: number; dy: number }
+  | {
+      t: 'key';
+      /** KeyboardEvent.code (physical key) */
+      code: string;
+      /** KeyboardEvent.key (the character produced, for typing text) */
+      key: string;
+      down: boolean;
+      shift: boolean;
+      ctrl: boolean;
+      alt: boolean;
+      meta: boolean;
+    };
+
+export type ControlEndReason = 'stopped' | 'expired' | 'share-ended' | 'left';
+
 /** A key or mouse button picked for push-to-talk. */
 export interface HotkeyBinding {
   kind: 'key' | 'mouse';
@@ -70,6 +90,21 @@ export interface OcakDesktop {
 
   /** Flash the taskbar / bounce the dock when something needs attention. */
   requestAttention(): void;
+
+  // ---- remote control (this computer being controlled) ----
+
+  /** What we're currently sharing: only a whole screen can be controlled. */
+  getShareKind(): Promise<'screen' | 'window' | null>;
+  /** Tell the app our screen share stopped (ends any control session). */
+  shareStopped(): void;
+  /** Show the native "X wants to control your screen" dialog. Starts the session if allowed. */
+  confirmControl(controllerId: string, name: string): Promise<{ allow: boolean; until: number | null; error?: string }>;
+  /** Forward one input event from the controller (ignored unless they were allowed). */
+  injectInput(controllerId: string, input: ControlInput): void;
+  /** End the current control session from the page. */
+  stopControl(): void;
+  /** The app ended the session (Stop button, shortcut, timeout...). */
+  onControlEnded(cb: (reason: ControlEndReason) => void): () => void;
 }
 
 declare global {

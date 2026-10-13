@@ -17,7 +17,13 @@ export const config = {
   port: Number(env.PORT ?? 3000),
   dbPath: resolve(env.DB_PATH ?? resolve(here, '../data/ocak.db')),
   webDist: resolve(env.WEB_DIST ?? resolve(here, '../../web/dist')),
-  /** Desktop installers (Ocak-Setup-*.exe, Ocak-*.dmg) put here are offered for download. */
+  /**
+   * Where the desktop installers are downloaded from, e.g.
+   * https://github.com/you/ocak/releases/latest/download (files Ocak-Setup.exe and Ocak.dmg).
+   * If unset, installers placed in downloadsDir are served instead.
+   */
+  desktopDownloadUrl: env.DESKTOP_DOWNLOAD_URL?.trim().replace(/\/+$/, '') || null,
+  /** Desktop installers (Ocak-Setup*.exe, Ocak*.dmg) put here are offered for download. */
   downloadsDir: resolve(env.DOWNLOADS_DIR ?? resolve(here, '../../downloads')),
 
   /**

@@ -1,7 +1,14 @@
 // Runs in the page before it loads (sandboxed). Exposes a small, explicit API as
 // `window.ocakDesktop`; the page never gets direct access to Node or Electron.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
-import type { CallAction, DesktopSettings, HotkeyBinding, OcakDesktop, ScreenSource } from '../../web/src/desktop-bridge';
+import type {
+  CallAction,
+  ControlEndReason,
+  DesktopSettings,
+  HotkeyBinding,
+  OcakDesktop,
+  ScreenSource,
+} from '../../web/src/desktop-bridge';
 
 const info = ipcRenderer.sendSync('ocak:info') as { version: string; platform: OcakDesktop['platform'] };
 
@@ -31,6 +38,18 @@ const api: OcakDesktop = {
   captureHotkey: () => ipcRenderer.invoke('ocak:capture-hotkey') as Promise<HotkeyBinding | null>,
 
   requestAttention: () => ipcRenderer.send('ocak:attention'),
+
+  getShareKind: () => ipcRenderer.invoke('ocak:share-kind') as Promise<'screen' | 'window' | null>,
+  shareStopped: () => ipcRenderer.send('ocak:share-stopped'),
+  confirmControl: (controllerId, name) =>
+    ipcRenderer.invoke('ocak:control-confirm', controllerId, name) as Promise<{
+      allow: boolean;
+      until: number | null;
+      error?: string;
+    }>,
+  injectInput: (controllerId, input) => ipcRenderer.send('ocak:control-input', controllerId, input),
+  stopControl: () => ipcRenderer.send('ocak:control-stop'),
+  onControlEnded: (cb) => subscribe<[ControlEndReason]>('ocak:control-ended', cb),
 };
 
 contextBridge.exposeInMainWorld('ocakDesktop', api);

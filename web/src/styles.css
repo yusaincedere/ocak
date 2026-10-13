@@ -847,12 +847,111 @@ a {
 
 .desktop-download {
   align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-top: 8px;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-3);
+}
+.desktop-download > * + *::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--text-3);
+}
+.desktop-download a {
+  color: var(--text-2);
   text-decoration: none;
 }
-.desktop-download:hover {
+.desktop-download a:hover {
   color: var(--text);
   text-decoration: underline;
+}
+
+/* ---------- Remote control ---------- */
+
+.control-pill {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 15;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(23, 24, 27, 0.92);
+  backdrop-filter: blur(6px);
+  font-size: 13px;
+  font-weight: 600;
+}
+.control-pill.request {
+  cursor: pointer;
+  padding-right: 14px;
+}
+.control-pill.request:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.rec-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--danger);
+  flex-shrink: 0;
+  animation: rec-pulse 1.4s infinite;
+}
+@keyframes rec-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+.control-banner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 16;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 90, 95, 0.16);
+  border: 1px solid rgba(255, 90, 95, 0.5);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.control-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+.control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px;
+  font-size: 13px;
+  background: rgba(255, 90, 95, 0.14);
+  border-bottom: 1px solid rgba(255, 90, 95, 0.4);
+}
+.control-video {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  cursor: default;
+  touch-action: none;
+}
+.control-video video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }

@@ -15,7 +15,8 @@ import {
   type IpcMainInvokeEvent,
 } from 'electron';
 import { join } from 'node:path';
-import type { CallAction, CallSnapshot, ScreenSource } from '../../web/src/desktop-bridge';
+import type { CallAction, CallSnapshot, ControlInput, ScreenSource } from '../../web/src/desktop-bridge';
+import { RemoteControl } from './control';
 import { Hotkeys } from './hotkeys';
 import { Overlay } from './overlay';
 import { getSettings, normalizeServerUrl, updateSettings } from './settings';
@@ -184,6 +185,7 @@ function setupScreenPicker(ses: Electron.Session) {
     if (!p) return;
     const source = p.sources.find((s) => s.id === id);
     if (!source) return p.callback({});
+    control.setShare(source.id, source.display_id || null);
     p.callback({
       video: source,
       // System audio loopback is only supported on Windows.
@@ -223,6 +225,12 @@ let callState: CallSnapshot | null = null;
 let trayKey: string | null = null;
 
 const overlay = new Overlay(APP_ROOT, (action) => (action === 'open' ? showWindow() : sendCallAction(action)));
+
+const control = new RemoteControl(
+  APP_ROOT,
+  () => win,
+  (reason) => win?.webContents.send('ocak:control-ended', reason),
+);
 
 /** Overlay shows while in a call and the main window isn't the one you're looking at. */
 function updateOverlayVisibility() {
@@ -304,6 +312,24 @@ function setupIpc() {
     return hotkeys.captureNext();
   });
 
+  // ---- remote control ----
+  ipcMain.handle('ocak:share-kind', (e) => (fromTrusted(e) ? control.shareKind : null));
+  ipcMain.on('ocak:share-stopped', (e) => {
+    if (fromTrusted(e)) control.shareStopped();
+  });
+  ipcMain.handle('ocak:control-confirm', async (e, controllerId: unknown, name: unknown) => {
+    if (!fromTrusted(e) || typeof controllerId !== 'string' || typeof name !== 'string')
+      return { allow: false, until: null };
+    return control.confirm(controllerId.slice(0, 128), name.slice(0, 64) || 'Someone');
+  });
+  ipcMain.on('ocak:control-input', (e, controllerId: unknown, input: unknown) => {
+    if (!fromTrusted(e) || typeof controllerId !== 'string' || !isControlInput(input)) return;
+    control.inject(controllerId, input);
+  });
+  ipcMain.on('ocak:control-stop', (e) => {
+    if (fromTrusted(e)) control.stop();
+  });
+
   ipcMain.on('ocak:call-state', (e, state: unknown) => {
     if (!fromTrusted(e)) return;
     callState = isSnapshot(state) ? state : null;
@@ -342,9 +368,36 @@ app.whenReady().then(async () => {
       callState = null;
       updateTray();
       overlay.setState(null);
+      control.shareStopped();
     }
   });
 });
+
+/** Strict shape check for input events coming from the page. */
+function isControlInput(v: unknown): v is ControlInput {
+  if (!v || typeof v !== 'object') return false;
+  const i = v as Record<string, unknown>;
+  const num = (n: unknown) => typeof n === 'number' && Number.isFinite(n);
+  switch (i.t) {
+    case 'move':
+      return num(i.x) && num(i.y);
+    case 'button':
+      return ['left', 'right', 'middle'].includes(i.button as string) && typeof i.down === 'boolean' && num(i.x) && num(i.y);
+    case 'wheel':
+      return num(i.dx) && num(i.dy);
+    case 'key':
+      return (
+        typeof i.code === 'string' &&
+        i.code.length < 32 &&
+        typeof i.key === 'string' &&
+        i.key.length < 16 &&
+        typeof i.down === 'boolean' &&
+        ['shift', 'ctrl', 'alt', 'meta'].every((m) => typeof i[m] === 'boolean')
+      );
+    default:
+      return false;
+  }
+}
 
 /** Light validation of what the page sends us. */
 function isSnapshot(v: unknown): v is CallSnapshot {
@@ -369,6 +422,7 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll();
   hotkeys.stop();
   overlay.destroy();
+  control.stop();
 });
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

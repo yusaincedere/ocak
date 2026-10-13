@@ -215,24 +215,30 @@ function Lobby({ invite }: { invite: { id: string; password: string | null } | n
   );
 }
 
-/** "Get the desktop app" - only if the server hosts an installer for this OS. */
+/** One quiet line: "Desktop app · Windows · macOS" (only the platforms that have an installer). */
 function DesktopDownload() {
-  const [href, setHref] = useState<string | null>(null);
+  const [links, setLinks] = useState<{ windows: string | null; mac: string | null } | null>(null);
   useEffect(() => {
     fetch('/api/desktop-downloads')
       .then((r) => (r.ok ? r.json() : null))
-      .then((l: { windows: string | null; mac: string | null } | null) => {
-        if (!l) return;
-        const mac = navigator.userAgent.includes('Mac');
-        setHref((mac ? l.mac : l.windows) ?? null);
-      })
+      .then(setLinks)
       .catch(() => {});
   }, []);
-  if (!href) return null;
+  if (!links || (!links.windows && !links.mac)) return null;
   return (
-    <a className="desktop-download" href={href} download>
-      Get the desktop app (push-to-talk, overlay)
-    </a>
+    <div className="desktop-download" title="Push-to-talk, mini overlay and remote control">
+      <span>Desktop app</span>
+      {links.windows && (
+        <a href={links.windows} download>
+          Windows
+        </a>
+      )}
+      {links.mac && (
+        <a href={links.mac} download>
+          macOS
+        </a>
+      )}
+    </div>
   );
 }
 

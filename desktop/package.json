@@ -1,6 +1,6 @@
 {
   "name": "ocak-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Ocak desktop app",
   "author": "Ocak",
@@ -10,15 +10,17 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p test/tsconfig.json",
     "dev": "npm run build && cross-env OCAK_SERVER_URL=http://localhost:5173 electron .",
     "start": "npm run build && electron .",
     "dist:win": "npm run build && electron-builder --win",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:linux": "npm run build && electron-builder --linux",
-    "dev:docker": "npm run build && cross-env OCAK_SERVER_URL=http://localhost:3000 electron ."
+    "dev:docker": "npm run build && cross-env OCAK_SERVER_URL=http://localhost:3000 electron .",
+    "test": "node --test --import tsx \"test/**/*.test.ts\""
   },
   "dependencies": {
+    "@jitsi/robotjs": "^0.6.24",
     "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
@@ -26,6 +28,7 @@
     "cross-env": "^10.1.0",
     "electron": "^44.7.1",
     "electron-builder": "^26.15.3",
+    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   },
   "build": {
@@ -43,7 +46,8 @@
       "package.json"
     ],
     "asarUnpack": [
-      "node_modules/uiohook-napi/**"
+      "node_modules/uiohook-napi/**",
+      "node_modules/@jitsi/robotjs/**"
     ],
     "win": {
       "target": [
@@ -59,11 +63,16 @@
     "nsis": {
       "oneClick": true,
       "perMachine": false,
-      "artifactName": "Ocak-Setup-${version}.${ext}"
+      "artifactName": "Ocak-Setup.${ext}"
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
       ],
       "category": "public.app-category.social-networking",
       "icon": "build/icon.png",
@@ -72,17 +81,20 @@
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Ocak uses your microphone for voice calls.",
-        "NSCameraUsageDescription": "Ocak uses your camera for video calls."
-      }
+        "NSCameraUsageDescription": "Ocak uses your camera for video calls.",
+        "NSAppleEventsUsageDescription": "Ocak needs this to let someone you approve control your screen."
+      },
+      "x64ArchFiles": "**/prebuilds/**/*.node"
     },
     "dmg": {
-      "artifactName": "Ocak-${version}.${ext}"
+      "artifactName": "Ocak.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
       "category": "Network"
-    }
+    },
+    "npmRebuild": false
   }
 }

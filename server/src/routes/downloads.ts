@@ -24,11 +24,12 @@ export async function downloadRoutes(app: FastifyInstance) {
     decorateReply: false,
     wildcard: true,
     // the folder may not exist yet; files can be dropped in later without a restart
-    allowedPath: (path) => /^\/?Ocak-[\w.-]+\.(exe|dmg|AppImage)$/.test(path),
+    allowedPath: (path) => /^\/?Ocak[\w.-]*\.(exe|dmg|AppImage)$/.test(path),
   });
 
-  app.get('/api/desktop-downloads', async () => ({
-    windows: latest(/^Ocak-Setup-.*\.exe$/),
-    mac: latest(/^Ocak-.*\.dmg$/),
-  }));
+  app.get('/api/desktop-downloads', async () => {
+    const base = config.desktopDownloadUrl;
+    if (base) return { windows: `${base}/Ocak-Setup.exe`, mac: `${base}/Ocak.dmg` };
+    return { windows: latest(/^Ocak-Setup.*\.exe$/), mac: latest(/^Ocak.*\.dmg$/) };
+  });
 }

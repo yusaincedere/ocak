@@ -18,6 +18,7 @@ import { DesktopIntegration, usePushToTalk } from './DesktopIntegration';
 import { DesktopSettings } from './DesktopSettings';
 import { CopyButton, NameChip } from './Home';
 import { Chat, Gear, Send, UserPlus, X } from './Icons';
+import { SharerControl, ViewerControl } from './RemoteControl';
 import { ScreenPicker } from './ScreenPicker';
 import { Stage } from './Stage';
 import { CameraButton, DeafenButton, IconButton, LeaveButton, MicButton, ScreenShareButton } from './VoiceControls';
@@ -110,6 +111,8 @@ function CallLayout({ call }: { call: Call }) {
         <div className="stage-wrap">
           {connection === ConnectionState.Connected && participants.length === 1 && <AloneHint call={call} />}
           <Stage />
+          <ViewerControl />
+          {desktop && <SharerControl />}
         </div>
         {chatOpen && <ChatPanel chat={chat} onClose={() => setChatOpen(false)} />}
       </div>
