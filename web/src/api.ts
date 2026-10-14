@@ -1,4 +1,4 @@
-import type { CreatedRoom, JoinResult, ServerConfig } from '../../server/src/protocol';
+import type { CreatedRoom, Gender, JoinResult, RandomAvatar, ServerConfig } from '../../server/src/protocol';
 import { translate, type MessageKey } from './i18n';
 
 /** Server error codes → translated messages (the server's own text is English-only). */
@@ -6,6 +6,8 @@ const ERROR_KEYS: Record<string, MessageKey> = {
   create_code: 'error.wrongCode',
   password: 'error.wrongPassword',
   not_found: 'error.notFound',
+  avatar_failed: 'avatar.failed',
+  no_avatars: 'avatar.failed',
 };
 
 export class ApiError extends Error {
@@ -42,8 +44,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   config: () => request<ServerConfig>('GET', '/api/config'),
-  createRoom: (createCode?: string | null) =>
-    request<CreatedRoom>('POST', '/api/rooms', createCode ? { createCode } : {}),
+  /** The room gets a name in the UI language: "limon3" or "lemon3". */
+  createRoom: (createCode?: string | null, lang?: 'tr' | 'en') =>
+    request<CreatedRoom>('POST', '/api/rooms', { ...(createCode ? { createCode } : {}), lang }),
   joinRoom: (id: string, b: { password: string; name: string; deviceId: string }) =>
     request<JoinResult>('POST', `/api/rooms/${encodeURIComponent(id)}/join`, b),
+  randomAvatar: (gender: Gender) => request<RandomAvatar>('POST', '/api/avatars/random', { gender }),
 };

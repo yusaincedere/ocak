@@ -4,9 +4,13 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { db, type RoomRow } from '../db.js';
 import type { CreatedRoom, JoinResult, ServerConfig } from '../protocol.js';
-import { hashPassword, newRoomId, newRoomPassword, normalizeRoomId, passwordMatches } from '../rooms.js';
+import { hashPassword, newRoomId, newRoomPassword, passwordMatches, roomIdCandidates } from '../rooms.js';
 
-const createBody = z.object({ createCode: z.string().max(200).optional() });
+const createBody = z.object({
+  createCode: z.string().max(200).optional(),
+  /** Language of the room name: "limon3" or "lemon3". */
+  lang: z.enum(['tr', 'en']).optional(),
+});
 
 /** Server codes are typed by people: ignore case and surrounding/inner extra spaces. */
 const normalizeCode = (c: string) => c.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -21,7 +25,13 @@ const joinBody = z.object({
 });
 
 export async function roomRoutes(app: FastifyInstance) {
-  app.get('/api/config', async (): Promise<ServerConfig> => ({ createCodeRequired: config.createCode !== null }));
+  app.get(
+    '/api/config',
+    async (): Promise<ServerConfig> => ({
+      createCodeRequired: config.createCode !== null,
+      avatarGenders: (['male', 'female'] as const).filter((g) => config.avatarApis[g]),
+    }),
+  );
 
   app.post(
     '/api/rooms',
@@ -32,8 +42,11 @@ export async function roomRoutes(app: FastifyInstance) {
       if (config.createCode && !sameCode(body.data.createCode, config.createCode))
         return reply.code(403).send({ error: 'Wrong server code', code: 'create_code' });
 
-      let id = newRoomId();
-      while (db.prepare('SELECT 1 FROM rooms WHERE id = ?').get(id)) id = newRoomId();
+      // Word + number; if a name is taken, try another, and allow bigger numbers if it keeps happening.
+      const taken = (candidate: string) => !!db.prepare('SELECT 1 FROM rooms WHERE id = ?').get(candidate);
+      const lang = body.data.lang ?? 'tr';
+      let id = newRoomId(lang);
+      for (let tries = 1; taken(id); tries++) id = newRoomId(lang, tries < 20 ? 99 : tries < 40 ? 999 : 9999);
       const password = newRoomPassword();
       const now = Date.now();
       db.prepare('INSERT INTO rooms (id, password_hash, created_at, last_used_at) VALUES (?, ?, ?, ?)').run(
@@ -50,13 +63,14 @@ export async function roomRoutes(app: FastifyInstance) {
     '/api/rooms/:id/join',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } },
     async (req, reply): Promise<JoinResult | undefined> => {
-      const id = normalizeRoomId((req.params as { id: string }).id);
       const body = joinBody.safeParse(req.body);
-      if (!id) return reply.code(404).send({ error: "That room doesn't exist", code: 'not_found' });
       if (!body.success) return reply.code(400).send({ error: 'Invalid request' });
 
-      const room = db.prepare('SELECT * FROM rooms WHERE id = ?').get(id) as RoomRow | undefined;
+      const room = roomIdCandidates((req.params as { id: string }).id)
+        .map((candidate) => db.prepare('SELECT * FROM rooms WHERE id = ?').get(candidate) as RoomRow | undefined)
+        .find(Boolean);
       if (!room) return reply.code(404).send({ error: "That room doesn't exist (or expired)", code: 'not_found' });
+      const id = room.id;
       if (!passwordMatches(body.data.password, room.password_hash))
         return reply.code(403).send({ error: 'Wrong password', code: 'password' });
 

@@ -33,6 +33,16 @@ export const config = {
    */
   createCode: env.CREATE_CODE?.trim() || null,
 
+  /**
+   * Optional profile pictures. Each is an API that returns JSON with a random image URL
+   * (e.g. {"url": "https://…", "dimensions": {"width": 1094, "height": 1825}}).
+   * With both set, people pick a gender when they choose their name; with neither, no pictures.
+   */
+  avatarApis: {
+    male: env.AVATAR_API_MALE?.trim() || null,
+    female: env.AVATAR_API_FEMALE?.trim() || null,
+  },
+
   /** Rooms nobody has joined for this many days are deleted. */
   roomTtlDays: Number(env.ROOM_TTL_DAYS ?? 7),
 

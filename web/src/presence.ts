@@ -1,18 +1,26 @@
 // Small bits of state everyone in the call can see, carried as LiveKit participant attributes
 // (nothing is stored on the server; they disappear when you leave).
 import type { LocalParticipant, Participant } from 'livekit-client';
+import { parsePick, serializePick, type AvatarPick } from './avatar';
 
 const DEAFENED = 'ocak.deafened';
 /** Push-to-talk users are "muted" between key presses; don't show them as muted. */
 const PTT = 'ocak.ptt';
+const AVATAR = 'ocak.avatar';
 
 export const isDeafened = (p: Participant) => p.attributes?.[DEAFENED] === '1';
 export const usesPushToTalk = (p: Participant) => p.attributes?.[PTT] === '1';
+/** Someone's profile picture; only same-origin pictures from our server are accepted. */
+export const avatarOf = (p: Participant): AvatarPick | null => parsePick(p.attributes?.[AVATAR]);
 
-export function setPresence(local: LocalParticipant, presence: { deafened?: boolean; ptt?: boolean }) {
+export function setPresence(
+  local: LocalParticipant,
+  presence: { deafened?: boolean; ptt?: boolean; avatar?: AvatarPick | null },
+) {
   const attrs: Record<string, string> = {};
   if (presence.deafened !== undefined) attrs[DEAFENED] = presence.deafened ? '1' : '';
   if (presence.ptt !== undefined) attrs[PTT] = presence.ptt ? '1' : '';
+  if (presence.avatar !== undefined) attrs[AVATAR] = presence.avatar ? serializePick(presence.avatar) : '';
   return local.setAttributes(attrs).catch(() => {});
 }
 

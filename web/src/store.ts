@@ -1,6 +1,8 @@
 import { create } from 'zustand';
+import type { ServerConfig } from '../../server/src/protocol';
+import type { AvatarPick } from './avatar';
 import type { DesktopSettings } from './desktop-bridge';
-import { getLang, getName, setLang as saveLang } from './identity';
+import { getAvatar, getLang, getName, setAvatar as saveAvatar, setLang as saveLang } from './identity';
 import type { Lang } from './i18n';
 
 export interface Call {
@@ -13,6 +15,9 @@ export interface Call {
 interface State {
   lang: Lang;
   name: string | null;
+  avatar: AvatarPick | null;
+  /** Loaded from /api/config at startup. */
+  serverConfig: ServerConfig | null;
   call: Call | null;
   deafened: boolean;
   notice: string | null;
@@ -23,6 +28,8 @@ interface State {
 
   setLang: (l: Lang) => void;
   setName: (n: string) => void;
+  setAvatar: (a: AvatarPick | null) => void;
+  setServerConfig: (c: ServerConfig) => void;
   setCall: (c: Call | null) => void;
   setDeafened: (d: boolean) => void;
   setNotice: (n: string | null) => void;
@@ -33,6 +40,8 @@ interface State {
 export const useStore = create<State>((set) => ({
   lang: getLang(),
   name: getName(),
+  avatar: getAvatar(),
+  serverConfig: null,
   call: null,
   deafened: false,
   notice: null,
@@ -45,6 +54,11 @@ export const useStore = create<State>((set) => ({
     set({ lang });
   },
   setName: (name) => set({ name }),
+  setAvatar: (avatar) => {
+    saveAvatar(avatar);
+    set({ avatar });
+  },
+  setServerConfig: (serverConfig) => set({ serverConfig }),
   setCall: (call) => set((s) => ({ call, deafened: call ? s.deafened : false, pttActive: false })),
   setDeafened: (deafened) => set({ deafened }),
   setNotice: (notice) => set({ notice }),

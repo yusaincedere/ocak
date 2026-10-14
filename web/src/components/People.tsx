@@ -1,8 +1,10 @@
 import { useIsSpeaking } from '@livekit/components-react';
 import type { Participant } from 'livekit-client';
-import type { CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
+import { cropStyle, type AvatarPick } from '../avatar';
 import { useT } from '../i18n';
-import { colorFor, initials, isDeafened, usesPushToTalk } from '../presence';
+import { avatarOf, colorFor, initials, isDeafened, usesPushToTalk } from '../presence';
+import { useStore } from '../store';
 import { HeadphonesOff, MicOff } from './Icons';
 
 /**
@@ -14,15 +16,30 @@ export function Avatar({ participant, size }: { participant: Participant; size?:
   const deafened = isDeafened(participant);
   const muted = !participant.isMicrophoneEnabled && !usesPushToTalk(participant);
   const name = participant.name || participant.identity;
+  // Our own picture shows right away; others' arrive as a participant attribute.
+  const myAvatar = useStore((s) => s.avatar);
+  const pick = participant.isLocal ? myAvatar : avatarOf(participant);
   const style = { '--c': colorFor(participant.identity), ...(size ? { '--size': `${size}px` } : {}) } as CSSProperties;
 
   return (
     <div className={`avatar${speaking ? ' speaking' : ''}`} style={style}>
       <span className="avatar-initials">{initials(name)}</span>
+      {pick && <AvatarPhoto key={pick.src} pick={pick} />}
       {(deafened || muted) && (
         <span className="avatar-badge">{deafened ? <HeadphonesOff /> : <MicOff />}</span>
       )}
     </div>
+  );
+}
+
+/** The cropped picture over the initials (which stay underneath if it fails to load). */
+export function AvatarPhoto({ pick }: { pick: AvatarPick }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    <span className="avatar-photo">
+      <img src={pick.src} style={cropStyle(pick)} alt="" draggable={false} onError={() => setFailed(true)} />
+    </span>
   );
 }
 

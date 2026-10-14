@@ -1,12 +1,15 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { ApiError } from '../api';
 import { joinCall, startCall } from '../call';
 import { desktop } from '../desktop-bridge';
-import { forgetRoom, recentRooms, setCreateCode, setName as saveName, type RecentRoom } from '../identity';
+import { deviceId, forgetRoom, recentRooms, setCreateCode, setName as saveName, type RecentRoom } from '../identity';
 import { LANGS, translate, useT } from '../i18n';
 import { parseJoinInput, roomLink } from '../links';
+import { colorFor, initials } from '../presence';
 import { useStore } from '../store';
+import { AvatarDialog, AvatarPicker } from './AvatarPicker';
 import { Copy, Pencil, X } from './Icons';
+import { AvatarPhoto } from './People';
 
 const ago = (t: number) => {
   const m = Math.round((Date.now() - t) / 60000);
@@ -23,17 +26,45 @@ export function Home({ invite }: { invite: { id: string; password: string | null
   return <Lobby invite={invite} />;
 }
 
-/** First visit: just ask for a name. */
+/** First visit: ask for a name (and, if the server has pictures, a profile picture). */
 function NameStep() {
   const t = useT();
   const [value, setValue] = useState('');
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
+  const [picking, setPicking] = useState(false);
+  const hasPictures = useStore((s) => (s.serverConfig?.avatarGenders.length ?? 0) > 0);
+
+  const finish = () => {
     const n = value.trim();
-    if (!n) return;
     saveName(n);
     useStore.getState().setName(n);
   };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (!value.trim()) return;
+    if (hasPictures) setPicking(true);
+    else finish();
+  };
+
+  if (picking)
+    return (
+      <div className="home">
+        <div className="home-card">
+          <Brand />
+          <div>
+            <h1>{t('avatar.title')}</h1>
+            <p className="muted">{t('avatar.subtitle')}</p>
+          </div>
+          <AvatarPicker
+            onDone={(pick) => {
+              useStore.getState().setAvatar(pick);
+              finish();
+            }}
+            secondary={{ label: t('avatar.none'), onClick: finish }}
+          />
+        </div>
+      </div>
+    );
+
   return (
     <div className="home">
       <form className="home-card" onSubmit={submit}>
@@ -195,7 +226,7 @@ function Lobby({ invite }: { invite: { id: string; password: string | null } | n
             {recent.map((r) => (
               <div key={r.id} className="recent-row">
                 <button className="recent-join" onClick={() => void join(r.id, r.password)} disabled={busy !== null}>
-                  <span className="mono">{r.id}</span>
+                  <span className="room-name">{r.id}</span>
                   <span className="muted small">{ago(r.lastUsed)}</span>
                 </button>
                 <CopyButton text={roomLink(r.id, r.password)} title={t('home.copyInvite')} />
@@ -277,7 +308,42 @@ export function Brand() {
 }
 
 /** "Yusa ✎" - click to rename. Used on the home screen and in calls. */
+/** Your own small avatar; opens the picture picker (only when the server has pictures). */
+function MyAvatarButton() {
+  const t = useT();
+  const name = useStore((s) => s.name) ?? '';
+  const avatar = useStore((s) => s.avatar);
+  const available = useStore((s) => (s.serverConfig?.avatarGenders.length ?? 0) > 0);
+  const [open, setOpen] = useState(false);
+  if (!available && !avatar) return null;
+  return (
+    <>
+      <button
+        type="button"
+        className={`my-avatar${avatar ? '' : ' empty'}`}
+        style={{ '--c': colorFor(deviceId()) } as CSSProperties}
+        title={t(avatar ? 'avatar.change' : 'avatar.choose')}
+        aria-label={t(avatar ? 'avatar.change' : 'avatar.choose')}
+        onClick={() => available && setOpen(true)}
+      >
+        <span className="avatar-initials">{initials(name)}</span>
+        {avatar && <AvatarPhoto key={avatar.src} pick={avatar} />}
+      </button>
+      {open && <AvatarDialog onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
 export function NameChip({ onRename }: { onRename?: (name: string) => void }) {
+  return (
+    <div className="me">
+      <MyAvatarButton />
+      <NameButton onRename={onRename} />
+    </div>
+  );
+}
+
+function NameButton({ onRename }: { onRename?: (name: string) => void }) {
   const t = useT();
   const name = useStore((s) => s.name) ?? '';
   const [editing, setEditing] = useState(false);

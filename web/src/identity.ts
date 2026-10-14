@@ -1,4 +1,7 @@
 // Everything about "you" lives in this browser / desktop app. No accounts.
+import type { Gender } from '../../server/src/protocol';
+import { parsePick, serializePick, type AvatarPick } from './avatar';
+
 // If local storage is cleared you just pick your name again.
 
 const KEY = {
@@ -7,6 +10,8 @@ const KEY = {
   rooms: 'ocak.rooms',
   createCode: 'ocak.createCode',
   lang: 'ocak.lang',
+  avatar: 'ocak.avatar',
+  gender: 'ocak.gender',
 };
 
 const memory = new Map<string, string>(); // fallback when storage is blocked (private mode etc.)
@@ -47,6 +52,16 @@ export const setName = (name: string) => write(KEY.name, name.trim().slice(0, 32
 /** UI language; Turkish unless the user picked English. */
 export const getLang = (): 'tr' | 'en' => (read(KEY.lang) === 'en' ? 'en' : 'tr');
 export const setLang = (lang: 'tr' | 'en') => write(KEY.lang, lang);
+
+/** Profile picture (validated, since storage can be edited by hand). */
+export const getAvatar = (): AvatarPick | null => parsePick(read(KEY.avatar));
+export const setAvatar = (a: AvatarPick | null) => write(KEY.avatar, a ? serializePick(a) : null);
+
+export const getGender = (): Gender | null => {
+  const g = read(KEY.gender);
+  return g === 'male' || g === 'female' ? g : null;
+};
+export const setGender = (g: Gender) => write(KEY.gender, g);
 
 export const getCreateCode = () => read(KEY.createCode);
 export const setCreateCode = (code: string | null) => write(KEY.createCode, code);

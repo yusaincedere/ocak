@@ -13,6 +13,7 @@ import { leaveCall, roomOptions } from '../call';
 import { desktop } from '../desktop-bridge';
 import { translate, useT } from '../i18n';
 import { roomLink } from '../links';
+import { setPresence } from '../presence';
 import { sounds } from '../sounds';
 import { useStore, type Call } from '../store';
 import { DesktopIntegration, usePushToTalk } from './DesktopIntegration';
@@ -54,6 +55,7 @@ export function CallView({ call }: { call: Call }) {
       <RoomAudioRenderer muted={deafened} />
       <DesktopIntegration roomId={call.roomId} />
       <CallSounds />
+      <AvatarSync />
       <ScreenPicker />
       <CallLayout call={call} />
     </LiveKitRoom>
@@ -94,7 +96,7 @@ function CallLayout({ call }: { call: Call }) {
     <>
       <header className="call-top">
         <div className="call-room">
-          <span className="mono">{call.roomId}</span>
+          <span className="room-name">{call.roomId}</span>
           <InviteButton call={call} />
         </div>
         <span className="muted small">
@@ -173,7 +175,7 @@ function InviteButton({ call }: { call: Call }) {
           <div className="pair">
             <div>
               <div className="label">{t('call.roomId')}</div>
-              <div className="mono big-mono">{call.roomId}</div>
+              <div className="room-name big-mono">{call.roomId}</div>
             </div>
             <div>
               <div className="label">{t('call.password')}</div>
@@ -185,6 +187,17 @@ function InviteButton({ call }: { call: Call }) {
       )}
     </div>
   );
+}
+
+/** Tells everyone in the call which profile picture we use (and when it changes). */
+function AvatarSync() {
+  const { localParticipant } = useLocalParticipant();
+  const connection = useConnectionState();
+  const avatar = useStore((s) => s.avatar);
+  useEffect(() => {
+    if (connection === ConnectionState.Connected) void setPresence(localParticipant, { avatar });
+  }, [connection, localParticipant, avatar]);
+  return null;
 }
 
 /** Join / leave chimes for other people. */

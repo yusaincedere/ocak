@@ -24,8 +24,8 @@ const join_ = (id: string, body: Record<string, unknown>) =>
   app.inject({ method: 'POST', url: `/api/rooms/${id}/join`, payload: body });
 const me = { name: 'Tester', deviceId: 'device12345' };
 
-async function createRoom() {
-  const res = await app.inject({ method: 'POST', url: '/api/rooms', payload: { createCode: 'testcode' } });
+async function createRoom(lang?: 'tr' | 'en') {
+  const res = await app.inject({ method: 'POST', url: '/api/rooms', payload: { createCode: 'testcode', lang } });
   assert.equal(res.statusCode, 200);
   return res.json() as { id: string; password: string };
 }
@@ -33,7 +33,7 @@ async function createRoom() {
 describe('config', () => {
   test('reports that a server code is required', async () => {
     const res = await app.inject('/api/config');
-    assert.deepEqual(res.json(), { createCodeRequired: true });
+    assert.deepEqual(res.json(), { createCodeRequired: true, avatarGenders: [] });
   });
 });
 
@@ -53,10 +53,25 @@ describe('creating rooms', () => {
     }
   });
 
-  test('returns a readable id and password', async () => {
+  test('names rooms with a Turkish word and a number by default', async () => {
+    const { TR_WORDS } = await import('../src/words.js');
     const room = await createRoom();
-    assert.match(room.id, /^[a-z2-9]{4}-[a-z2-9]{4}$/);
+    const m = room.id.match(/^([a-z]+)(\d+)$/);
+    assert.ok(m, room.id);
+    assert.ok(TR_WORDS.includes(m[1]!), room.id);
+    assert.ok(Number(m[2]) >= 1 && Number(m[2]) <= 99, room.id);
     assert.match(room.password, /^[a-z2-9]{6}$/);
+  });
+
+  test('uses English words when asked', async () => {
+    const { EN_WORDS } = await import('../src/words.js');
+    const room = await createRoom('en');
+    assert.ok(EN_WORDS.includes(room.id.replace(/\d+$/, '')), room.id);
+  });
+
+  test('rejects an unknown language', async () => {
+    const res = await app.inject({ method: 'POST', url: '/api/rooms', payload: { createCode: 'testcode', lang: 'de' } });
+    assert.equal(res.statusCode, 400);
   });
 
   test('ids are unique', async () => {
@@ -82,11 +97,29 @@ describe('joining rooms', () => {
     assert.ok(claims.sub.startsWith('device12345:'));
   });
 
-  test('accepts ids and passwords in any case, with or without the dash', async () => {
+  test('accepts names and passwords in any case, with spaces, or typed on a Turkish keyboard', async () => {
     const room = await createRoom();
-    const id = room.id.replace('-', '').toUpperCase();
-    const res = await join_(id, { ...me, password: room.password.toUpperCase() });
-    assert.equal(res.statusCode, 200);
+    const word = room.id.replace(/\d+$/, '');
+    const num = room.id.slice(word.length);
+    for (const typed of [room.id.toUpperCase(), `${word} ${num}`, `${word}-${num}`, room.id.toLocaleUpperCase('tr')]) {
+      const res = await join_(encodeURIComponent(typed), { ...me, password: room.password.toUpperCase() });
+      assert.equal(res.statusCode, 200, typed);
+      assert.equal(res.json().roomId, room.id, typed);
+    }
+  });
+
+  test('rooms made before word names still work, with or without the dash', async () => {
+    const { db } = await import('../src/db.js');
+    const { hashPassword } = await import('../src/rooms.js');
+    const now = Date.now();
+    db.prepare('INSERT INTO rooms (id, password_hash, created_at, last_used_at) VALUES (?, ?, ?, ?)').run('k7m2-qp4x', hashPassword('h3x9tw'), now, now);
+    // "pancake3" is a valid word name *and* 8 old-style letters; the old room must still be found.
+    db.prepare('INSERT INTO rooms (id, password_hash, created_at, last_used_at) VALUES (?, ?, ?, ?)').run('panc-ake3', hashPassword('h3x9tw'), now, now);
+    for (const [typed, id] of [['k7m2-qp4x', 'k7m2-qp4x'], ['K7M2QP4X', 'k7m2-qp4x'], ['pancake3', 'panc-ake3']]) {
+      const res = await join_(typed!, { ...me, password: 'h3x9tw' });
+      assert.equal(res.statusCode, 200, typed);
+      assert.equal(res.json().roomId, id);
+    }
   });
 
   test('rejects a wrong password', async () => {
@@ -156,5 +189,16 @@ describe('expiry', () => {
     pruneRooms();
     const res = await join_(room.id, { ...me, password: room.password });
     assert.equal(res.statusCode, 404);
+  });
+});
+
+describe('room words', () => {
+  test('are short lowercase a-z words with no duplicates', async () => {
+    const { EN_WORDS, TR_WORDS } = await import('../src/words.js');
+    for (const list of [TR_WORDS, EN_WORDS]) {
+      assert.ok(list.length >= 100);
+      assert.equal(new Set(list).size, list.length, 'duplicate word');
+      for (const w of list) assert.match(w, /^[a-z]{2,9}$/);
+    }
   });
 });

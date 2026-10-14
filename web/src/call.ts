@@ -29,7 +29,7 @@ export const screenShareOptions: ScreenShareCaptureOptions = {
 
 /** Create a new room and join it. Throws ApiError (code 'create_code' if the server code is needed). */
 export async function startCall(createCode = getCreateCode()) {
-  const room = await api.createRoom(createCode);
+  const room = await api.createRoom(createCode, useStore.getState().lang);
   await joinCall(room.id, room.password);
 }
 

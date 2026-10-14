@@ -4,6 +4,7 @@ import { useDesktopSettingsLoader } from './components/DesktopIntegration';
 import { DesktopSettings } from './components/DesktopSettings';
 import { Home } from './components/Home';
 import { Gear } from './components/Icons';
+import { api } from './api';
 import { desktop } from './desktop-bridge';
 import { useT } from './i18n';
 import { roomFromLocation } from './links';
@@ -18,6 +19,12 @@ export function App() {
     if (call) setInvite(null);
   }, [call]);
   useDesktopSettingsLoader();
+  useEffect(() => {
+    api
+      .config()
+      .then((c) => useStore.getState().setServerConfig(c))
+      .catch(() => {});
+  }, []);
   const t = useT();
 
   return (

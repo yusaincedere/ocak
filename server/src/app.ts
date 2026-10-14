@@ -3,6 +3,7 @@ import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { config } from './config.js';
+import { avatarRoutes } from './routes/avatars.js';
 import { downloadRoutes } from './routes/downloads.js';
 import { roomRoutes } from './routes/rooms.js';
 
@@ -18,6 +19,7 @@ export async function buildApp({ logger = true, rateLimits = true }: { logger?: 
   if (rateLimits) await app.register(rateLimit, { global: false });
   await app.register(roomRoutes);
   await app.register(downloadRoutes);
+  await app.register(avatarRoutes);
 
   app.get('/api/health', async () => ({ ok: true }));
 
