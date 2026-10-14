@@ -28,6 +28,11 @@ const TRAY_ICON = join(APP_ROOT, 'build', 'tray.png');
 const SETUP_PAGE = join(APP_ROOT, 'static', 'setup.html');
 
 let win: BrowserWindow | null = null;
+
+/** The main window, unless it has been closed (a closed window must not be touched). */
+const mainWindow = () => (win && !win.isDestroyed() ? win : null);
+/** Message to the page, if there is one. */
+const sendToPage = (channel: string, ...args: unknown[]) => mainWindow()?.webContents.send(channel, ...args);
 let tray: Tray | null = null;
 let quitting = false;
 
@@ -95,9 +100,32 @@ function createWindow() {
   win.once('ready-to-show', () => win?.show());
 
   win.on('close', (e) => {
-    if (!quitting && getSettings().closeToTray && process.platform !== 'darwin') {
+    // macOS apps keep running when their window closes (reopen from the Dock), so there closing
+    // only hides it and the call goes on. Elsewhere that's the "keep running in the tray" setting.
+    if (!quitting && (process.platform === 'darwin' || getSettings().closeToTray)) {
       e.preventDefault();
       win?.hide();
+    }
+  });
+  win.on('closed', () => {
+    // The page (and any call in it) is gone.
+    win = null;
+    callState = null;
+    updateTray();
+    overlay.setState(null);
+    control.stop();
+  });
+  win.on('focus', () => win?.flashFrame(false));
+  for (const ev of ['focus', 'blur', 'show', 'hide', 'minimize', 'restore'] as const) {
+    win.on(ev as 'focus', () => setImmediate(updateOverlayVisibility));
+  }
+  // Page reload / navigation drops the call.
+  win.webContents.on('did-start-navigation', (_e, _url, _inPlace, isMainFrame) => {
+    if (isMainFrame) {
+      callState = null;
+      updateTray();
+      overlay.setState(null);
+      control.shareStopped();
     }
   });
 
@@ -124,20 +152,21 @@ function createWindow() {
 
 function loadApp() {
   const url = getSettings().serverUrl;
-  if (url) void win?.loadURL(url);
+  if (url) void mainWindow()?.loadURL(url);
   else loadSetup();
 }
 
 /** The "connect to your server" page, in the app's language. */
 function loadSetup(query: Record<string, string> = {}) {
-  void win?.loadFile(SETUP_PAGE, { query: { ...query, lang: getSettings().language, s: JSON.stringify(pageStrings('setup')) } });
+  void mainWindow()?.loadFile(SETUP_PAGE, { query: { ...query, lang: getSettings().language, s: JSON.stringify(pageStrings('setup')) } });
 }
 
 function showWindow() {
-  if (!win) return;
-  if (win.isMinimized()) win.restore();
-  win.show();
-  win.focus();
+  const w = mainWindow();
+  if (!w) return createWindow(); // it was really closed: open a fresh one
+  if (w.isMinimized()) w.restore();
+  w.show();
+  w.focus();
 }
 
 // ---------- permissions ----------
@@ -162,7 +191,7 @@ let pendingPick: Pending | null = null;
 
 function setupScreenPicker(ses: Electron.Session) {
   ses.setDisplayMediaRequestHandler(async (request, callback) => {
-    if (!win || !isTrustedUrl(request.frame?.url)) return callback({});
+    if (!mainWindow() || !isTrustedUrl(request.frame?.url)) return callback({});
     pendingPick?.callback({}); // cancel any previous unanswered request
     try {
       const sources = await desktopCapturer.getSources({
@@ -178,7 +207,7 @@ function setupScreenPicker(ses: Electron.Session) {
         thumbnail: s.thumbnail.toDataURL(),
         appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : undefined,
       }));
-      win.webContents.send('ocak:pick-source', list);
+      sendToPage('ocak:pick-source', list);
     } catch (err) {
       console.error('getSources failed', err);
       pendingPick = null;
@@ -204,7 +233,7 @@ function setupScreenPicker(ses: Electron.Session) {
 
 // ---------- hotkeys ----------
 
-const hotkeys = new Hotkeys((down) => win?.webContents.send('ocak:ptt', down));
+const hotkeys = new Hotkeys((down) => sendToPage('ocak:ptt', down));
 
 function applyHotkeys() {
   const s = getSettings();
@@ -224,7 +253,7 @@ function applyHotkeys() {
 // ---------- tray ----------
 
 function sendCallAction(action: CallAction) {
-  win?.webContents.send('ocak:call-action', action);
+  sendToPage('ocak:call-action', action);
 }
 
 // ---------- call state: tray menu + overlay ----------
@@ -240,13 +269,14 @@ const overlay = new Overlay(
 
 const control = new RemoteControl(
   APP_ROOT,
-  () => win,
-  (reason) => win?.webContents.send('ocak:control-ended', reason),
+  mainWindow,
+  (reason) => sendToPage('ocak:control-ended', reason),
 );
 
 /** Overlay shows while in a call and the main window isn't the one you're looking at. */
 function updateOverlayVisibility() {
-  const background = !win || !win.isVisible() || win.isMinimized() || !win.isFocused();
+  const w = mainWindow();
+  const background = !w || !w.isVisible() || w.isMinimized() || !w.isFocused();
   overlay.setWanted(getSettings().overlay && background);
 }
 
@@ -360,9 +390,10 @@ function setupIpc() {
   });
 
   ipcMain.on('ocak:attention', (e) => {
-    if (!fromTrusted(e) || !win || win.isFocused()) return;
+    const w = mainWindow();
+    if (!fromTrusted(e) || !w || w.isFocused()) return;
     if (process.platform === 'darwin') app.dock?.bounce('informational');
-    else win.flashFrame(true);
+    else w.flashFrame(true);
   });
 }
 
@@ -378,20 +409,6 @@ app.whenReady().then(async () => {
   createWindow();
   createTray();
   applyHotkeys();
-
-  win?.on('focus', () => win?.flashFrame(false));
-  for (const ev of ['focus', 'blur', 'show', 'hide', 'minimize', 'restore'] as const) {
-    win?.on(ev as 'focus', () => setImmediate(updateOverlayVisibility));
-  }
-  // Page reload / navigation drops the call.
-  win?.webContents.on('did-start-navigation', (_e, _url, _inPlace, isMainFrame) => {
-    if (isMainFrame) {
-      callState = null;
-      updateTray();
-      overlay.setState(null);
-      control.shareStopped();
-    }
-  });
 });
 
 /** Strict shape check for input events coming from the page. */
@@ -435,7 +452,7 @@ function isSnapshot(v: unknown): v is CallSnapshot {
   );
 }
 
-app.on('activate', () => showWindow()); // macOS dock click
+app.on('activate', () => app.isReady() && showWindow()); // macOS Dock click
 app.on('before-quit', () => {
   quitting = true;
 });
