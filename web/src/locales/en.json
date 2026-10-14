@@ -62,6 +62,7 @@
   "call.roomId": "Room ID",
   "call.password": "Password",
   "call.inviteNote": "Anyone with the link can join. No account needed.",
+  "call.live": "LIVE",
   "call.enableAudio": "Click to enable audio",
 
   "controls.mute": "Mute",

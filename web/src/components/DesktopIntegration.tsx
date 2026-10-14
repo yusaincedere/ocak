@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { leaveCall, roomOptions } from '../call';
 import { desktop, type CallSnapshot } from '../desktop-bridge';
 import { translate } from '../i18n';
+import { setPresence } from '../presence';
 import { useStore } from '../store';
 import { useDeafen, useToggleMute } from './VoiceControls';
 
@@ -79,6 +80,11 @@ export function DesktopIntegration({ roomId }: { roomId: string }) {
     desktop.setCallState(snap);
   });
   useEffect(() => () => desktop?.setCallState(null), []);
+
+  // Let others know we use push-to-talk, so we don't look muted between key presses.
+  useEffect(() => {
+    if (connection === ConnectionState.Connected) void setPresence(localParticipant, { ptt });
+  }, [ptt, connection, localParticipant]);
 
   // In PTT mode, publish the mic track *muted* as soon as we connect, so the first
   // key press unmutes instantly instead of waiting for the microphone to start.

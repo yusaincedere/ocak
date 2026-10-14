@@ -1,6 +1,6 @@
 {
   "name": "ocak-desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "description": "Ocak desktop app",
   "author": "Ocak",
@@ -76,7 +76,8 @@
       ],
       "category": "public.app-category.social-networking",
       "icon": "build/icon.png",
-      "hardenedRuntime": true,
+      "identity": "-",
+      "hardenedRuntime": false,
       "entitlements": "build/entitlements.mac.plist",
       "entitlementsInherit": "build/entitlements.mac.plist",
       "extendInfo": {

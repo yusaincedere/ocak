@@ -439,6 +439,146 @@ a {
 .stage-tiles > .lk-focus-layout {
   height: 100%;
 }
+/* ---------- Voice room: people without a camera ---------- */
+
+.voice-room {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  padding: 32px 24px;
+}
+.voice-room-people {
+  --size: min(var(--s), 26vw);
+  margin: auto; /* centers, but scrolls instead of clipping when it overflows */
+  max-width: 880px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: calc(var(--size) * 0.32) calc(var(--size) * 0.38);
+}
+.person {
+  width: calc(var(--size) + 32px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.avatar {
+  --ring: transparent;
+  position: relative;
+  flex-shrink: 0;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--c) 20%, var(--bg-3));
+  color: var(--c);
+  box-shadow:
+    0 0 0 3px #0b0c0d,
+    0 0 0 calc(3px + max(2px, var(--size) * 0.025)) var(--ring);
+  transition: box-shadow 0.15s ease;
+}
+.avatar.speaking {
+  --ring: var(--ok);
+}
+.avatar-initials {
+  font-weight: 700;
+  font-size: calc(var(--size) * 0.36);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  user-select: none;
+}
+.avatar-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: max(18px, calc(var(--size) * 0.28));
+  height: max(18px, calc(var(--size) * 0.28));
+  border-radius: 50%;
+  background: #0b0c0d;
+  color: var(--danger);
+  box-shadow: 0 0 0 2px #0b0c0d;
+}
+.avatar-badge svg {
+  width: 60%;
+  height: 60%;
+}
+.person-name {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.person-name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.person:has(.avatar.speaking) .person-name {
+  color: var(--text);
+}
+.live-tag {
+  flex-shrink: 0;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Slim row of voice-only people under the video. */
+.voice-strip {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 8px 4px;
+  overflow-x: auto;
+}
+.person-chip {
+  flex-shrink: 0;
+  max-width: 180px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px 5px 6px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+}
+.person-chip .avatar {
+  box-shadow:
+    0 0 0 2px var(--bg-2),
+    0 0 0 4px var(--ring);
+}
+.person-chip .avatar-badge {
+  right: -3px;
+  bottom: -3px;
+  box-shadow: 0 0 0 1.5px var(--bg-2);
+  background: var(--bg-2);
+}
+.person-chip .person-name {
+  font-size: 13px;
+}
+.person-chip:has(.avatar.speaking) .person-name {
+  color: var(--text);
+}
+
+@media (max-width: 600px) {
+  .voice-room {
+    padding: 24px 12px;
+  }
+}
+
 .stage .lk-start-audio-button {
   position: absolute;
   top: 16px;

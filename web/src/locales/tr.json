@@ -62,6 +62,7 @@
   "call.roomId": "Oda kodu",
   "call.password": "Şifre",
   "call.inviteNote": "Bağlantıya sahip herkes katılabilir. Hesap gerekmez.",
+  "call.live": "CANLI",
   "call.enableAudio": "Sesi açmak için tıkla",
 
   "controls.mute": "Sessize al",

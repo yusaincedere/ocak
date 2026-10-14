@@ -3,6 +3,7 @@ import { Track } from 'livekit-client';
 import { useCallback, type ReactNode } from 'react';
 import { leaveCall, screenShareOptions } from '../call';
 import { translate, useT, type MessageKey } from '../i18n';
+import { setPresence } from '../presence';
 import { sounds } from '../sounds';
 import { useStore } from '../store';
 import { Headphones, HeadphonesOff, Mic, MicOff, PhoneOff, Screen, Video } from './Icons';
@@ -58,9 +59,11 @@ export function useDeafen() {
       micWasOn = localParticipant.isMicrophoneEnabled;
       setDeafened(true);
       void localParticipant.setMicrophoneEnabled(false);
+      void setPresence(localParticipant, { deafened: true });
       sounds.mute();
     } else {
       setDeafened(false);
+      void setPresence(localParticipant, { deafened: false });
       if (micWasOn) void localParticipant.setMicrophoneEnabled(true);
       sounds.unmute();
     }
