@@ -13,6 +13,8 @@ export async function buildApp({ logger = true, rateLimits = true }: { logger?: 
     logger: logger ? { level: config.isProd ? 'info' : 'debug' } : false,
     // In production the app only listens on 127.0.0.1 behind Caddy, so X-Forwarded-For is trustworthy.
     trustProxy: config.isProd,
+    // Picture links (/api/avatars/<signed token>) carry the image URL, often longer than the default 100.
+    maxParamLength: 4096,
   });
 
   // Per-route limits (see routes/rooms.ts). Tests switch them off to make many requests quickly.

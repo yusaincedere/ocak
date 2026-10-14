@@ -91,6 +91,13 @@ describe('profile pictures', () => {
     assert.ok((hits['/img/m1.png'] ?? 0) - before <= 1, 'fetched from the picture site at most once');
   });
 
+  test('serves pictures with long URLs (real picture sites use long file names)', async () => {
+    const url = `${base}/img/api/v2/husbando/185d43f1-52ed-400d-8afe-2e66864dfda8-${'x'.repeat(300)}.png`;
+    const res = await app.inject(`/api/avatars/${avatars.avatarToken(url)}`);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.rawPayload, PNG);
+  });
+
   test('only fetches URLs this server signed', async () => {
     const forged = `/api/avatars/${Buffer.from('https://tracker.example/pixel.png').toString('base64url')}.AAAAAAAAAAAAAAAAAAAAAA`;
     for (const url of [forged, '/api/avatars/nonsense', '/api/avatars/a.b.c']) {
