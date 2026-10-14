@@ -1,12 +1,16 @@
 import { useConnectionState, useLocalParticipant, useParticipants } from '@livekit/components-react';
 import { ConnectionState, createLocalAudioTrack, Track } from 'livekit-client';
 import { useEffect } from 'react';
+import type { AvatarPick } from '../avatar';
 import { leaveCall, roomOptions } from '../call';
 import { desktop, type CallSnapshot } from '../desktop-bridge';
 import { translate } from '../i18n';
-import { setPresence } from '../presence';
+import { avatarOf, setPresence } from '../presence';
 import { useStore } from '../store';
 import { useDeafen, useToggleMute } from './VoiceControls';
+
+/** The overlay is a local page, so it needs the picture's full address on the server. */
+const overlayAvatar = (pick: AvatarPick | null) => (pick ? { ...pick, src: new URL(pick.src, location.origin).href } : null);
 
 /** True when the desktop app is in push-to-talk mode with a key bound. */
 export function usePushToTalk() {
@@ -75,6 +79,7 @@ export function DesktopIntegration({ roomId }: { roomId: string }) {
         muted: !p.isMicrophoneEnabled,
         isLocal: p.isLocal,
         sharing: p.isScreenShareEnabled,
+        avatar: overlayAvatar(p.isLocal ? useStore.getState().avatar : avatarOf(p)),
       })),
     };
     desktop.setCallState(snap);

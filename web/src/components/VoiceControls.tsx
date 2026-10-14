@@ -2,6 +2,7 @@ import { MediaDeviceMenu, useLocalParticipant, useTrackToggle } from '@livekit/c
 import { Track } from 'livekit-client';
 import { useCallback, type ReactNode } from 'react';
 import { leaveCall, screenShareOptions } from '../call';
+import { desktop } from '../desktop-bridge';
 import { translate, useT, type MessageKey } from '../i18n';
 import { setPresence } from '../presence';
 import { sounds } from '../sounds';
@@ -119,8 +120,10 @@ export function ScreenShareButton() {
     source: Track.Source.ScreenShare,
     captureOptions: screenShareOptions,
     onDeviceError: (err) => {
-      // Cancelling the picker is not an error worth showing.
-      if (err.name !== 'NotAllowedError') reportDeviceError('screen')(err);
+      // Cancelling the picker is not an error worth showing. The desktop app reports every
+      // refusal as an AbortError and tells us the real reason itself (see ScreenPicker).
+      if (err.name === 'NotAllowedError' || (err.name === 'AbortError' && desktop?.onShareError)) return;
+      reportDeviceError('screen')(err);
     },
   });
   const t = useT();

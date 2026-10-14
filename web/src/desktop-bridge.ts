@@ -30,6 +30,9 @@ export type ControlInput =
       meta: boolean;
     };
 
+/** Why a screen share couldn't start (the page itself only sees a generic error). */
+export type ShareErrorReason = 'permission' | 'failed';
+
 export type ControlEndReason = 'stopped' | 'expired' | 'share-ended' | 'left';
 
 /** A key or mouse button picked for push-to-talk. */
@@ -59,7 +62,16 @@ export interface CallSnapshot {
   roomId: string;
   muted: boolean;
   deafened: boolean;
-  participants: { id: string; name: string; speaking: boolean; muted: boolean; isLocal: boolean; sharing: boolean }[];
+  participants: {
+    id: string;
+    name: string;
+    speaking: boolean;
+    muted: boolean;
+    isLocal: boolean;
+    sharing: boolean;
+    /** Profile picture: absolute URL on the Ocak server plus the crop (see web/src/avatar.ts). */
+    avatar?: { src: string; ar: number; x: number; y: number; zoom: number } | null;
+  }[];
 }
 
 export type CallAction = 'toggle-mute' | 'toggle-deafen' | 'leave';
@@ -107,6 +119,8 @@ export interface OcakDesktop {
   stopControl(): void;
   /** The app ended the session (Stop button, shortcut, timeout...). */
   onControlEnded(cb: (reason: ControlEndReason) => void): () => void;
+  /** Desktop 0.2.3+: a screen share was refused, and why. */
+  onShareError?(cb: (reason: ShareErrorReason) => void): () => void;
 }
 
 declare global {

@@ -44,7 +44,8 @@ function Notice() {
   const notice = useStore((s) => s.notice);
   useEffect(() => {
     if (!notice) return;
-    const t = setTimeout(() => useStore.getState().setNotice(null), 6000);
+    // Long messages (e.g. permission steps) stay up long enough to read.
+    const t = setTimeout(() => useStore.getState().setNotice(null), Math.max(6000, notice.length * 70));
     return () => clearTimeout(t);
   }, [notice]);
   if (!notice) return null;

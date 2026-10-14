@@ -15,7 +15,7 @@ import {
   type IpcMainInvokeEvent,
 } from 'electron';
 import { join } from 'node:path';
-import type { CallAction, CallSnapshot, ControlInput, ScreenSource } from '../../web/src/desktop-bridge';
+import type { CallAction, CallSnapshot, ControlInput, ScreenSource, ShareErrorReason } from '../../web/src/desktop-bridge';
 import { RemoteControl } from './control';
 import { Hotkeys } from './hotkeys';
 import { pageStrings, t } from './i18n';
@@ -110,6 +110,7 @@ function createWindow() {
   win.on('closed', () => {
     // The page (and any call in it) is gone.
     win = null;
+    if (quitting) return; // everything is being torn down anyway
     callState = null;
     updateTray();
     overlay.setState(null);
@@ -189,16 +190,52 @@ function setupPermissions() {
 type Pending = { callback: (streams: Electron.Streams) => void; sources: DesktopCapturerSource[] };
 let pendingPick: Pending | null = null;
 
+/**
+ * Says no to a screen-share request. (Electron reports any refusal to the page as
+ * "AbortError: Invalid capture constraints", so the page is told the real reason separately.)
+ */
+function refuse(callback: Pending['callback']) {
+  try {
+    callback(null as unknown as Electron.Streams);
+  } catch {
+    /* already answered */
+  }
+}
+
+const SCREEN_RECORDING_SETTINGS = 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture';
+
+/** macOS: no Screen Recording permission for *this* build of Ocak. */
+function missingScreenPermission() {
+  if (process.platform !== 'darwin') return false;
+  const status = systemPreferences.getMediaAccessStatus('screen');
+  return status === 'denied' || status === 'restricted';
+}
+
+function reportShareError(reason: ShareErrorReason) {
+  sendToPage('ocak:share-error', reason);
+  if (reason === 'permission') void shell.openExternal(SCREEN_RECORDING_SETTINGS);
+}
+
 function setupScreenPicker(ses: Electron.Session) {
   ses.setDisplayMediaRequestHandler(async (request, callback) => {
-    if (!mainWindow() || !isTrustedUrl(request.frame?.url)) return callback({});
-    pendingPick?.callback({}); // cancel any previous unanswered request
+    if (!mainWindow() || !isTrustedUrl(request.frame?.url)) return refuse(callback);
+    if (pendingPick) refuse(pendingPick.callback); // cancel any previous unanswered request
+    pendingPick = null;
+    if (missingScreenPermission()) {
+      refuse(callback);
+      return reportShareError('permission');
+    }
     try {
       const sources = await desktopCapturer.getSources({
         types: ['screen', 'window'],
         thumbnailSize: { width: 400, height: 225 },
         fetchWindowIcons: true,
       });
+      // Without permission macOS may hand back nothing at all.
+      if (!sources.length) {
+        refuse(callback);
+        return reportShareError(process.platform === 'darwin' ? 'permission' : 'failed');
+      }
       pendingPick = { callback, sources };
       const list: ScreenSource[] = sources.map((s) => ({
         id: s.id,
@@ -211,7 +248,8 @@ function setupScreenPicker(ses: Electron.Session) {
     } catch (err) {
       console.error('getSources failed', err);
       pendingPick = null;
-      callback({});
+      refuse(callback);
+      reportShareError(missingScreenPermission() || process.platform === 'darwin' ? 'permission' : 'failed');
     }
   });
 
@@ -221,7 +259,7 @@ function setupScreenPicker(ses: Electron.Session) {
     pendingPick = null;
     if (!p) return;
     const source = p.sources.find((s) => s.id === id);
-    if (!source) return p.callback({});
+    if (!source) return refuse(p.callback); // cancelled in the picker
     control.setShare(source.id, source.display_id || null);
     p.callback({
       video: source,
@@ -383,7 +421,7 @@ function setupIpc() {
 
   ipcMain.on('ocak:call-state', (e, state: unknown) => {
     if (!fromTrusted(e)) return;
-    callState = isSnapshot(state) ? state : null;
+    callState = isSnapshot(state) ? withSafeAvatars(state) : null;
     updateTray();
     overlay.setState(callState);
     updateOverlayVisibility();
@@ -435,6 +473,35 @@ function isControlInput(v: unknown): v is ControlInput {
     default:
       return false;
   }
+}
+
+/** Keeps only profile pictures served by our own Ocak server (the overlay loads them). */
+function withSafeAvatars(s: CallSnapshot): CallSnapshot {
+  let prefix: string | null = null;
+  try {
+    prefix = `${new URL(getSettings().serverUrl).origin}/api/avatars/`;
+  } catch {
+    /* no server */
+  }
+  const num = (v: unknown, lo: number, hi: number) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+  return {
+    ...s,
+    participants: s.participants.map((p) => {
+      const a = p.avatar;
+      const ok =
+        !!a &&
+        !!prefix &&
+        typeof a.src === 'string' &&
+        a.src.length < 3000 &&
+        a.src.startsWith(prefix) &&
+        /^[\w.-]+$/.test(a.src.slice(prefix.length)) &&
+        num(a.ar, 0.05, 20) &&
+        num(a.x, 0, 1) &&
+        num(a.y, 0, 1) &&
+        num(a.zoom, 0.01, 1);
+      return { ...p, avatar: ok ? { src: a.src, ar: a.ar, x: a.x, y: a.y, zoom: a.zoom } : null };
+    }),
+  };
 }
 
 /** Light validation of what the page sends us. */

@@ -2,7 +2,7 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src https: http://localhost:* http://127.0.0.1:*" />
     <title>Ocak overlay</title>
     <style>
       * { box-sizing: border-box; }
@@ -31,6 +31,8 @@
         width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center;
         background: #2c2f35; font-size: 10px; font-weight: 700; color: #e9e9ec; transition: box-shadow 0.12s;
       }
+      .av { position: relative; overflow: hidden; }
+      .av img { position: absolute; max-width: none; pointer-events: none; }
       li.speaking .av { box-shadow: 0 0 0 2px #111214, 0 0 0 3.5px #4ade80; }
       li.speaking .name { color: #fff; }
       .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c9cad0; }
@@ -111,6 +113,20 @@
           const av = document.createElement('span');
           av.className = 'av';
           av.textContent = (p.name || '?').trim().slice(0, 1).toUpperCase();
+          // Profile picture (only URLs on our own server get here; the app checks them).
+          const a = p.avatar;
+          if (a && typeof a.src === 'string') {
+            const side = a.zoom * Math.min(a.ar, 1);
+            const img = document.createElement('img');
+            img.alt = '';
+            img.style.width = `${(a.ar / side) * 100}%`;
+            img.style.height = `${(1 / side) * 100}%`;
+            img.style.left = `${(0.5 - (a.x * a.ar) / side) * 100}%`;
+            img.style.top = `${(0.5 - a.y / side) * 100}%`;
+            img.onerror = () => img.remove();
+            img.src = a.src;
+            av.append(img);
+          }
           const name = document.createElement('span');
           name.className = 'name';
           name.textContent = p.isLocal ? `${p.name} ${T.you}` : p.name;

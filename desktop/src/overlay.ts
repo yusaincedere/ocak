@@ -17,6 +17,11 @@ export class Overlay {
   private state: CallSnapshot | null = null;
   private wanted = false;
 
+  /** The overlay window, unless it was closed (e.g. while the app quits). */
+  private get alive(): BrowserWindow | null {
+    return this.win && !this.win.isDestroyed() ? this.win : null;
+  }
+
   constructor(
     private appRoot: string,
     private onAction: (a: CallAction | 'open') => void,
@@ -24,26 +29,28 @@ export class Overlay {
     private getStrings: () => Record<string, string>,
   ) {
     ipcMain.on('ocak-overlay:act', (e, action: unknown) => {
-      if (!this.win || e.sender !== this.win.webContents) return;
+      const w = this.alive;
+      if (!w || e.sender !== w.webContents) return;
       if (action === 'toggle-mute' || action === 'toggle-deafen' || action === 'leave' || action === 'open') this.onAction(action);
     });
     ipcMain.on('ocak-overlay:height', (e, h: unknown) => {
-      if (!this.win || e.sender !== this.win.webContents || typeof h !== 'number') return;
-      const [, cur] = this.win.getSize();
+      const w = this.alive;
+      if (!w || e.sender !== w.webContents || typeof h !== 'number') return;
+      const [, cur] = w.getSize();
       const height = Math.max(60, Math.min(Math.ceil(h), 480));
-      if (cur !== height) this.win.setSize(WIDTH, height);
+      if (cur !== height) w.setSize(WIDTH, height);
     });
   }
 
   setState(state: CallSnapshot | null) {
     this.state = state;
-    this.win?.webContents.send('ocak-overlay:state', state);
+    this.alive?.webContents.send('ocak-overlay:state', state);
     this.sync();
   }
 
   /** Re-send the labels after the language changed. */
   refreshStrings() {
-    this.win?.webContents.send('ocak-overlay:strings', this.getStrings());
+    this.alive?.webContents.send('ocak-overlay:strings', this.getStrings());
   }
 
   /** Whether the overlay *should* be visible (main window in background + setting on). */
@@ -57,13 +64,13 @@ export class Overlay {
     if (show) {
       const w = this.ensure();
       if (!w.isVisible()) w.showInactive();
-    } else if (this.win?.isVisible()) {
-      this.win.hide();
+    } else if (this.alive?.isVisible()) {
+      this.alive.hide();
     }
   }
 
   private ensure(): BrowserWindow {
-    if (this.win && !this.win.isDestroyed()) return this.win;
+    if (this.alive) return this.alive;
     const { x, y } = this.initialPosition();
     const win = new BrowserWindow({
       width: WIDTH,
@@ -80,6 +87,10 @@ export class Overlay {
       skipTaskbar: true,
       alwaysOnTop: true,
       focusable: false,
+      // macOS: a non-activating panel, so clicking a button doesn't switch to Ocak (which would
+      // hide the overlay before the click lands); and the first click counts.
+      ...(process.platform === 'darwin' ? { type: 'panel' as const } : {}),
+      acceptFirstMouse: true,
       hasShadow: false,
       show: false,
       title: 'Ocak overlay',
@@ -126,7 +137,7 @@ export class Overlay {
   }
 
   destroy() {
-    this.win?.destroy();
+    this.alive?.destroy();
     this.win = null;
   }
 }

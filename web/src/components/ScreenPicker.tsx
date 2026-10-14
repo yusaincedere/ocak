@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { desktop, type ScreenSource } from '../desktop-bridge';
-import { useT } from '../i18n';
+import { translate, useT } from '../i18n';
+import { useStore } from '../store';
 import { Screen } from './Icons';
 
 /**
@@ -21,6 +22,15 @@ export function ScreenPicker() {
         setTab(list.some((s) => s.kind === 'screen') ? 'screen' : 'window');
         setSelected(list.find((s) => s.kind === 'screen')?.id ?? null);
       }),
+    [],
+  );
+
+  // Why a share was refused (macOS permission, no screens...): the page only sees a generic error.
+  useEffect(
+    () =>
+      desktop?.onShareError?.((reason) =>
+        useStore.getState().setNotice(translate(reason === 'permission' ? 'picker.permission' : 'picker.failed')),
+      ),
     [],
   );
 

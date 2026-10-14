@@ -113,6 +113,8 @@
   "picker.audio": "Bilgisayar sesini de paylaş",
   "picker.audioHint": "Bilgisayarında çalan her şeyi içerir, görüşmedeki diğer kişilerin sesleri de dahil.",
   "picker.goLive": "Yayına başla",
+  "picker.permission": "Ekran paylaşımı için izin gerekiyor. Sistem Ayarları'nda Ocak'ı Ekran ve Sistem Sesi Kaydı listesinde aç (açıksa kapatıp tekrar aç), sonra Ocak'tan tamamen çıkıp yeniden başlat.",
+  "picker.failed": "Ekran paylaşımı başlatılamadı. Tekrar dene.",
 
   "settings.title": "Ayarlar",
   "settings.language": "Dil",

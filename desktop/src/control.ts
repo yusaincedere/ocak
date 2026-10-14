@@ -56,7 +56,7 @@ export class RemoteControl {
     private onEnded: (reason: ControlEndReason) => void,
   ) {
     ipcMain.on('ocak-banner:stop', (e) => {
-      if (this.banner && e.sender === this.banner.webContents) this.end('stopped');
+      if (this.banner && !this.banner.isDestroyed() && e.sender === this.banner.webContents) this.end('stopped');
     });
   }
 
@@ -199,7 +199,7 @@ export class RemoteControl {
       }
     }
     globalShortcut.unregister(STOP_SHORTCUT);
-    this.banner?.destroy();
+    if (this.banner && !this.banner.isDestroyed()) this.banner.destroy();
     this.banner = null;
     this.onEnded(reason);
   }

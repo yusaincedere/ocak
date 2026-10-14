@@ -113,6 +113,8 @@
   "picker.audio": "Share computer audio",
   "picker.audioHint": "Includes everything your computer plays, including other people's voices in this call.",
   "picker.goLive": "Go live",
+  "picker.permission": "Screen sharing needs permission. In System Settings, turn Ocak on under Screen & System Audio Recording (if it's already on, turn it off and on again), then quit Ocak completely and reopen it.",
+  "picker.failed": "Couldn't start screen sharing. Try again.",
 
   "settings.title": "Settings",
   "settings.language": "Language",

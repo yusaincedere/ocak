@@ -8,6 +8,7 @@ import type {
   HotkeyBinding,
   OcakDesktop,
   ScreenSource,
+  ShareErrorReason,
 } from '../../web/src/desktop-bridge';
 
 const info = ipcRenderer.sendSync('ocak:info') as { version: string; platform: OcakDesktop['platform'] };
@@ -50,6 +51,7 @@ const api: OcakDesktop = {
   injectInput: (controllerId, input) => ipcRenderer.send('ocak:control-input', controllerId, input),
   stopControl: () => ipcRenderer.send('ocak:control-stop'),
   onControlEnded: (cb) => subscribe<[ControlEndReason]>('ocak:control-ended', cb),
+  onShareError: (cb) => subscribe<[ShareErrorReason]>('ocak:share-error', cb),
 };
 
 contextBridge.exposeInMainWorld('ocakDesktop', api);
