@@ -7,6 +7,7 @@ import {
   ParticipantTile,
   StartAudio,
   useCreateLayoutContext,
+  useMaybeTrackRefContext,
   useParticipants,
   usePinnedTracks,
   useTracks,
@@ -17,6 +18,7 @@ import { RoomEvent, Track } from 'livekit-client';
 import { useEffect, useRef } from 'react';
 import { useT } from '../i18n';
 import { VoiceRoom, VoiceStrip } from './People';
+import { usePersonMenu } from './VolumeMenu';
 
 const sameTrack = (a?: TrackReferenceOrPlaceholder, b?: TrackReferenceOrPlaceholder) =>
   !!a &&
@@ -77,13 +79,13 @@ export function Stage() {
           <div className="stage-tiles">
             {!focusTrack ? (
               <GridLayout tracks={videos}>
-                <ParticipantTile />
+                <PersonTile />
               </GridLayout>
             ) : (
               <FocusLayoutContainer>
                 {others.length > 0 && (
                   <CarouselLayout tracks={others}>
-                    <ParticipantTile />
+                    <PersonTile />
                   </CarouselLayout>
                 )}
                 <FocusLayout trackRef={focusTrack} />
@@ -97,4 +99,10 @@ export function Stage() {
       <StartAudio label={t('call.enableAudio')} />
     </div>
   );
+}
+
+/** A video tile that also opens the volume menu on right-click / long-press. */
+function PersonTile() {
+  const ref = useMaybeTrackRefContext();
+  return <ParticipantTile {...usePersonMenu(ref?.participant)} />;
 }

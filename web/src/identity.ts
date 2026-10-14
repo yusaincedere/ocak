@@ -12,6 +12,8 @@ const KEY = {
   lang: 'ocak.lang',
   avatar: 'ocak.avatar',
   gender: 'ocak.gender',
+  volumes: 'ocak.volumes',
+  noiseReduction: 'ocak.noiseReduction',
 };
 
 const memory = new Map<string, string>(); // fallback when storage is blocked (private mode etc.)
@@ -62,6 +64,23 @@ export const getGender = (): Gender | null => {
   return g === 'male' || g === 'female' ? g : null;
 };
 export const setGender = (g: Gender) => write(KEY.gender, g);
+
+/** How loud each friend is for you (0..2, 1 = normal), keyed by their device. */
+export function getVolumes(): Record<string, number> {
+  try {
+    const raw = JSON.parse(read(KEY.volumes) ?? '{}') as Record<string, unknown>;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(raw)) if (typeof v === 'number' && v >= 0 && v <= 2 && k.length <= 64) out[k] = v;
+    return out;
+  } catch {
+    return {};
+  }
+}
+export const saveVolumes = (v: Record<string, number>) => write(KEY.volumes, JSON.stringify(v));
+
+/** Noise reduction on the microphone: on unless turned off. */
+export const getNoiseReduction = () => read(KEY.noiseReduction) !== 'off';
+export const saveNoiseReduction = (on: boolean) => write(KEY.noiseReduction, on ? 'on' : 'off');
 
 export const getCreateCode = () => read(KEY.createCode);
 export const setCreateCode = (code: string | null) => write(KEY.createCode, code);

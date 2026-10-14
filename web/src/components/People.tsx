@@ -3,9 +3,10 @@ import type { Participant } from 'livekit-client';
 import { useState, type CSSProperties } from 'react';
 import { cropStyle, type AvatarPick } from '../avatar';
 import { useT } from '../i18n';
-import { avatarOf, colorFor, initials, isDeafened, usesPushToTalk } from '../presence';
+import { avatarOf, colorFor, deviceOf, initials, isDeafened, usesPushToTalk } from '../presence';
 import { useStore } from '../store';
-import { HeadphonesOff, MicOff } from './Icons';
+import { HeadphonesOff, MicOff, VolumeOff } from './Icons';
+import { usePersonMenu } from './VolumeMenu';
 
 /**
  * Round avatar with the person's color, a speaking ring and a mute / deafen badge.
@@ -19,14 +20,22 @@ export function Avatar({ participant, size }: { participant: Participant; size?:
   // Our own picture shows right away; others' arrive as a participant attribute.
   const myAvatar = useStore((s) => s.avatar);
   const pick = participant.isLocal ? myAvatar : avatarOf(participant);
+  // You turned this person all the way down.
+  const silencedForMe = useStore((s) => !participant.isLocal && s.volumes[deviceOf(participant.identity)] === 0);
   const style = { '--c': colorFor(participant.identity), ...(size ? { '--size': `${size}px` } : {}) } as CSSProperties;
 
   return (
     <div className={`avatar${speaking ? ' speaking' : ''}`} style={style}>
       <span className="avatar-initials">{initials(name)}</span>
       {pick && <AvatarPhoto key={pick.src} pick={pick} />}
-      {(deafened || muted) && (
+      {deafened || muted ? (
         <span className="avatar-badge">{deafened ? <HeadphonesOff /> : <MicOff />}</span>
+      ) : (
+        silencedForMe && (
+          <span className="avatar-badge mine">
+            <VolumeOff />
+          </span>
+        )
       )}
     </div>
   );
@@ -61,10 +70,7 @@ export function VoiceRoom({ participants }: { participants: Participant[] }) {
     <div className="voice-room">
       <div className="voice-room-people" style={{ '--s': `${size}px` } as CSSProperties}>
         {participants.map((p) => (
-          <div key={p.identity} className="person">
-            <Avatar participant={p} />
-            <PersonName participant={p} />
-          </div>
+          <Person key={p.identity} participant={p} />
         ))}
       </div>
     </div>
@@ -77,11 +83,19 @@ export function VoiceStrip({ participants }: { participants: Participant[] }) {
   return (
     <div className="voice-strip">
       {participants.map((p) => (
-        <div key={p.identity} className="person-chip">
-          <Avatar participant={p} size={30} />
-          <PersonName participant={p} />
-        </div>
+        <Person key={p.identity} participant={p} chip />
       ))}
+    </div>
+  );
+}
+
+/** One person in the voice room (big) or the strip (chip). Right-click / long-press: volume. */
+function Person({ participant, chip }: { participant: Participant; chip?: boolean }) {
+  const menu = usePersonMenu(participant);
+  return (
+    <div className={chip ? 'person-chip' : 'person'} {...menu}>
+      <Avatar participant={participant} size={chip ? 30 : undefined} />
+      <PersonName participant={participant} />
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { DesktopSettings } from './components/DesktopSettings';
 import { Home } from './components/Home';
 import { Gear } from './components/Icons';
 import { api } from './api';
-import { desktop } from './desktop-bridge';
 import { useT } from './i18n';
 import { roomFromLocation } from './links';
 import { useStore } from './store';
@@ -30,7 +29,7 @@ export function App() {
   return (
     <>
       {call ? <CallView call={call} /> : <Home invite={invite} />}
-      {!call && desktop && (
+      {!call && (
         <button className="icon-btn corner" title={t('common.settings')} aria-label={t('common.settings')} onClick={() => setSettingsOpen(true)}>
           <Gear />
         </button>

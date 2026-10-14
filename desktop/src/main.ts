@@ -87,6 +87,8 @@ function createWindow() {
       spellcheck: true,
       // Keep audio, timers and the socket alive while minimized / in the tray.
       backgroundThrottling: false,
+      // A call app: play audio and run audio processing (noise reduction) without waiting for a click.
+      autoplayPolicy: 'no-user-gesture-required',
     },
   });
 

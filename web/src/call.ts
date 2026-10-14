@@ -9,6 +9,8 @@ import { useStore } from './store';
 export const roomOptions: RoomOptions = {
   adaptiveStream: true, // only download video at the size it's actually displayed
   dynacast: true, // stop encoding layers nobody is watching
+  // Mix incoming audio through Web Audio, so per-friend volume can go above 100%.
+  webAudioMix: true,
   audioCaptureDefaults: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
   videoCaptureDefaults: { resolution: VideoPresets.h720.resolution },
   publishDefaults: {

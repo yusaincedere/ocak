@@ -1265,3 +1265,60 @@ a {
   height: 100%;
   object-fit: contain;
 }
+
+/* ---------- Per-friend volume ---------- */
+
+.avatar-badge.mine {
+  color: var(--text-2); /* turned down by you, not muted by them */
+}
+.volume-menu {
+  position: fixed;
+  z-index: 60;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+}
+.volume-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.volume-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.volume-row input {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+.volume-value {
+  width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.volume-menu .btn.small-btn {
+  align-self: flex-start;
+}
+.person,
+.person-chip {
+  -webkit-touch-callout: none; /* long-press opens the volume menu, not the iOS callout */
+}
+.modal.settings .setting:last-of-type {
+  padding-bottom: 16px;
+}

@@ -2,7 +2,17 @@ import { create } from 'zustand';
 import type { ServerConfig } from '../../server/src/protocol';
 import type { AvatarPick } from './avatar';
 import type { DesktopSettings } from './desktop-bridge';
-import { getAvatar, getLang, getName, setAvatar as saveAvatar, setLang as saveLang } from './identity';
+import {
+  getAvatar,
+  getLang,
+  getName,
+  getNoiseReduction,
+  getVolumes,
+  saveNoiseReduction,
+  saveVolumes,
+  setAvatar as saveAvatar,
+  setLang as saveLang,
+} from './identity';
 import type { Lang } from './i18n';
 
 export interface Call {
@@ -25,6 +35,9 @@ interface State {
   desktopSettings: DesktopSettings | null;
   /** Push-to-talk key is currently held. */
   pttActive: boolean;
+  /** Per-friend volume (0..2), keyed by device id. */
+  volumes: Record<string, number>;
+  noiseReduction: boolean;
 
   setLang: (l: Lang) => void;
   setName: (n: string) => void;
@@ -35,6 +48,8 @@ interface State {
   setNotice: (n: string | null) => void;
   setDesktopSettings: (s: DesktopSettings) => void;
   setPttActive: (v: boolean) => void;
+  setVolume: (deviceId: string, volume: number) => void;
+  setNoiseReduction: (on: boolean) => void;
 }
 
 export const useStore = create<State>((set) => ({
@@ -47,6 +62,8 @@ export const useStore = create<State>((set) => ({
   notice: null,
   desktopSettings: null,
   pttActive: false,
+  volumes: getVolumes(),
+  noiseReduction: getNoiseReduction(),
 
   setLang: (lang) => {
     saveLang(lang);
@@ -64,4 +81,17 @@ export const useStore = create<State>((set) => ({
   setNotice: (notice) => set({ notice }),
   setDesktopSettings: (desktopSettings) => set({ desktopSettings }),
   setPttActive: (pttActive) => set({ pttActive }),
+  setVolume: (deviceId, volume) =>
+    set((s) => {
+      const volumes = { ...s.volumes };
+      const v = Math.round(Math.min(2, Math.max(0, volume)) * 100) / 100;
+      if (v === 1) delete volumes[deviceId];
+      else volumes[deviceId] = v;
+      saveVolumes(volumes);
+      return { volumes };
+    }),
+  setNoiseReduction: (noiseReduction) => {
+    saveNoiseReduction(noiseReduction);
+    set({ noiseReduction });
+  },
 }));

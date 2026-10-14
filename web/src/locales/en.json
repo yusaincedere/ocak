@@ -151,5 +151,15 @@
   "control.reason.expired": "Remote control time with {name} ran out.",
   "control.reason.share-ended": "{name} stopped sharing their screen.",
   "control.reason.left": "{name} left the call.",
-  "control.reason.cancelled": "{name} cancelled."
+  "control.reason.cancelled": "{name} cancelled.",
+
+  "volume.hint": "Right-click for volume (long-press on touch screens)",
+  "volume.title": "{name} volume",
+  "volume.label": "Volume for you",
+  "volume.mute": "Mute just for me",
+  "volume.unmute": "Unmute",
+  "volume.reset": "Reset to 100%",
+  "audio.noise": "Noise reduction",
+  "audio.noiseDesc": "Removes keyboard, fan and background noise from your mic. Runs on your computer; nothing is sent anywhere.",
+  "audio.noiseUnavailable": "Noise reduction doesn't work in this browser; your mic is sent as is."
 }

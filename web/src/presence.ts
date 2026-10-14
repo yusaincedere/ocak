@@ -25,7 +25,7 @@ export function setPresence(
 }
 
 /** The device part of an identity ("<deviceId>:<suffix>"), so a person keeps their color across calls. */
-const deviceOf = (identity: string) => identity.split(':')[0] ?? identity;
+export const deviceOf = (identity: string) => identity.split(':')[0] ?? identity;
 
 // Muted, warm-leaning palette that reads well on the dark background.
 const COLORS = ['#f2994a', '#e5c35a', '#7bc96f', '#4fc1a6', '#56b4e9', '#7c8cf8', '#b48cf2', '#ec7aa8', '#ef6f6c', '#a3b86c'];

@@ -1,6 +1,5 @@
 import {
   LiveKitRoom,
-  RoomAudioRenderer,
   useChat,
   useConnectionState,
   useLocalParticipant,
@@ -16,17 +15,18 @@ import { roomLink } from '../links';
 import { setPresence } from '../presence';
 import { sounds } from '../sounds';
 import { useStore, type Call } from '../store';
+import { CallAudio, NoiseReductionSync } from './CallAudio';
 import { DesktopIntegration, usePushToTalk } from './DesktopIntegration';
 import { DesktopSettings } from './DesktopSettings';
 import { CopyButton, NameChip } from './Home';
 import { Chat, Gear, Send, UserPlus, X } from './Icons';
+import { VolumeMenu } from './VolumeMenu';
 import { SharerControl, ViewerControl } from './RemoteControl';
 import { ScreenPicker } from './ScreenPicker';
 import { Stage } from './Stage';
 import { CameraButton, DeafenButton, IconButton, LeaveButton, MicButton, ScreenShareButton } from './VoiceControls';
 
 export function CallView({ call }: { call: Call }) {
-  const deafened = useStore((s) => s.deafened);
   const ptt = usePushToTalk();
 
   return (
@@ -52,7 +52,9 @@ export function CallView({ call }: { call: Call }) {
       }}
       onMediaDeviceFailure={() => useStore.getState().setNotice(translate('call.deviceBlocked'))}
     >
-      <RoomAudioRenderer muted={deafened} />
+      <CallAudio />
+      <NoiseReductionSync />
+      <VolumeMenu />
       <DesktopIntegration roomId={call.roomId} />
       <CallSounds />
       <AvatarSync />
@@ -104,11 +106,9 @@ function CallLayout({ call }: { call: Call }) {
         </span>
         <div className="spacer" />
         <NameChip onRename={(n) => void localParticipant.setName(n).catch(() => {})} />
-        {desktop && (
-          <IconButton label={t('common.settings')} onClick={() => setSettingsOpen(true)}>
-            <Gear />
-          </IconButton>
-        )}
+        <IconButton label={t('common.settings')} onClick={() => setSettingsOpen(true)}>
+          <Gear />
+        </IconButton>
       </header>
 
       <div className="call-body">

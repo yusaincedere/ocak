@@ -151,5 +151,15 @@
   "control.reason.expired": "{name} ile uzaktan kontrol süresi doldu.",
   "control.reason.share-ended": "{name} ekran paylaşımını durdurdu.",
   "control.reason.left": "{name} görüşmeden ayrıldı.",
-  "control.reason.cancelled": "{name} iptal etti."
+  "control.reason.cancelled": "{name} iptal etti.",
+
+  "volume.hint": "Ses düzeyi için sağ tıkla (dokunmatikte basılı tut)",
+  "volume.title": "{name} ses düzeyi",
+  "volume.label": "Senin için ses düzeyi",
+  "volume.mute": "Sadece benim için sessize al",
+  "volume.unmute": "Sesi geri aç",
+  "volume.reset": "100%'e sıfırla",
+  "audio.noise": "Gürültü engelleme",
+  "audio.noiseDesc": "Klavye, fan ve arka plan seslerini mikrofonundan temizler. Bilgisayarında çalışır, hiçbir yere gönderilmez.",
+  "audio.noiseUnavailable": "Gürültü engelleme bu tarayıcıda çalışmıyor; mikrofonun normal şekilde gidiyor."
 }
