@@ -107,3 +107,5 @@ export const VolumeOff = (p: P) => (
     <path d="m22 9-6 6M16 9l6 6" />
   </svg>
 );
+/** The League helper: the "L" from public/lol.png, painted in the current text color like the other icons. */
+export const LolLogo = ({ size = 18 }: { size?: number }) => <span className="lol-logo" style={{ width: size, height: size }} aria-hidden />;

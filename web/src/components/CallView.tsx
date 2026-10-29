@@ -10,6 +10,7 @@ import { ConnectionState, RoomEvent } from 'livekit-client';
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { leaveCall, roomOptions } from '../call';
 import { desktop } from '../desktop-bridge';
+import { useLolMeta } from '../lol';
 import { translate, useT } from '../i18n';
 import { roomLink } from '../links';
 import { setPresence } from '../presence';
@@ -18,8 +19,10 @@ import { useStore, type Call } from '../store';
 import { CallAudio, NoiseReductionSync } from './CallAudio';
 import { DesktopIntegration, usePushToTalk } from './DesktopIntegration';
 import { DesktopSettings } from './DesktopSettings';
+import { LolPanel } from './LolPanel';
+import { PostGameCard, usePostGame } from './PostGame';
 import { CopyButton, NameChip } from './Home';
-import { Chat, Gear, Send, UserPlus, X } from './Icons';
+import { Chat, Gear, LolLogo, Send, UserPlus, X } from './Icons';
 import { VolumeMenu } from './VolumeMenu';
 import { SharerControl, ViewerControl } from './RemoteControl';
 import { ScreenPicker } from './ScreenPicker';
@@ -68,7 +71,11 @@ function CallLayout({ call }: { call: Call }) {
   const participants = useParticipants();
   const connection = useConnectionState();
   const { localParticipant } = useLocalParticipant();
-  const [chatOpen, setChatOpen] = useState(false);
+  // One side panel at a time: chat or the LoL helper.
+  const [panel, setPanel] = useState<'chat' | 'lol' | null>(null);
+  const chatOpen = panel === 'chat';
+  const lolMeta = useLolMeta();
+  const postGame = usePostGame();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const chat = useChat();
   const [seen, setSeen] = useState(0);
@@ -118,7 +125,8 @@ function CallLayout({ call }: { call: Call }) {
           <ViewerControl />
           {desktop && <SharerControl />}
         </div>
-        {chatOpen && <ChatPanel chat={chat} onClose={() => setChatOpen(false)} />}
+        {chatOpen && <ChatPanel chat={chat} onClose={() => setPanel(null)} />}
+        {panel === 'lol' && lolMeta?.enabled && <LolPanel meta={lolMeta} onClose={() => setPanel(null)} />}
       </div>
 
       <footer className="controls">
@@ -126,14 +134,20 @@ function CallLayout({ call }: { call: Call }) {
         <DeafenButton />
         <CameraButton />
         <ScreenShareButton />
-        <IconButton label={chatOpen ? t('controls.hideChat') : t('controls.chat')} active={chatOpen} onClick={() => setChatOpen((v) => !v)} className="chat-btn">
+        <IconButton label={chatOpen ? t('controls.hideChat') : t('controls.chat')} active={chatOpen} onClick={() => setPanel((v) => (v === 'chat' ? null : 'chat'))} className="chat-btn">
           <Chat />
           {unread > 0 && <span className="badge">{unread > 9 ? '9+' : unread}</span>}
         </IconButton>
+        {lolMeta?.enabled && (
+          <IconButton label={t('lol.title')} active={panel === 'lol'} onClick={() => setPanel((v) => (v === 'lol' ? null : 'lol'))} className="lol-btn">
+            <LolLogo />
+          </IconButton>
+        )}
         <LeaveButton />
       </footer>
 
       {settingsOpen && <DesktopSettings onClose={() => setSettingsOpen(false)} />}
+      {postGame.shown && <PostGameCard match={postGame.shown} friends={postGame.friends} night={postGame.night} onClose={postGame.close} />}
     </>
   );
 }
@@ -194,9 +208,10 @@ function AvatarSync() {
   const { localParticipant } = useLocalParticipant();
   const connection = useConnectionState();
   const avatar = useStore((s) => s.avatar);
+  const riot = useStore((s) => s.riot);
   useEffect(() => {
-    if (connection === ConnectionState.Connected) void setPresence(localParticipant, { avatar });
-  }, [connection, localParticipant, avatar]);
+    if (connection === ConnectionState.Connected) void setPresence(localParticipant, { avatar, riot });
+  }, [connection, localParticipant, avatar, riot]);
   return null;
 }
 

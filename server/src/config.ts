@@ -43,6 +43,27 @@ export const config = {
     female: env.AVATAR_API_FEMALE?.trim() || null,
   },
 
+  /**
+   * Optional League of Legends helpers (builds, counters, post-game cards).
+   * Needs a Riot API key from developer.riotgames.com; without one the LoL features are hidden.
+   */
+  lol: {
+    apiKey: env.RIOT_API_KEY?.trim() || null,
+    /**
+     * Servers whose high-elo games feed the build/counter stats. Riot's rate limit is per region,
+     * so servers in different regions (europe / asia / americas) add up: more games per hour.
+     */
+    platforms: (env.LOL_PLATFORMS ?? 'tr1,euw1,kr,na1')
+      .split(',')
+      .map((p) => p.trim().toLowerCase())
+      .filter((p) => /^[a-z]+\d*$/.test(p)),
+    /** Set LOL_COLLECT=off to only serve post-game cards (no background stats collection). */
+    collect: env.LOL_COLLECT !== 'off',
+    /** Overrides for tests: where the Riot API and Data Dragon are. */
+    apiBase: env.RIOT_API_BASE?.replace(/\/+$/, '') || null,
+    ddragonBase: (env.DDRAGON_BASE ?? 'https://ddragon.leagueoflegends.com').replace(/\/+$/, ''),
+  },
+
   /** Rooms nobody has joined for this many days are deleted. */
   roomTtlDays: Number(env.ROOM_TTL_DAYS ?? 7),
 

@@ -5,6 +5,7 @@
 #   Secrets:   DEPLOY_SSH_KEY, DEPLOY_SSH_KNOWN_HOSTS
 # Optional app settings, copied into the server's deploy/.env on every deploy:
 #   Variables: AVATAR_API_MALE, AVATAR_API_FEMALE, DESKTOP_DOWNLOAD_URL
+#   Secret:    RIOT_API_KEY (League of Legends helpers)
 # Without DEPLOY_SSH_HOST set (e.g. in forks) this workflow does nothing.
 name: Deploy
 
@@ -55,12 +56,14 @@ jobs:
           AVATAR_API_MALE: ${{ vars.AVATAR_API_MALE }}
           AVATAR_API_FEMALE: ${{ vars.AVATAR_API_FEMALE }}
           DESKTOP_DOWNLOAD_URL: ${{ vars.DESKTOP_DOWNLOAD_URL }}
+          RIOT_API_KEY: ${{ secrets.RIOT_API_KEY }}
         run: |
           # The server's authorized_keys entry only lets this key run deploy/remote-deploy.sh;
           # it receives the commit SHA, plus the optional settings on stdin (empty = leave as is).
           printf '%s\n' \
             "AVATAR_API_MALE=$AVATAR_API_MALE" \
             "AVATAR_API_FEMALE=$AVATAR_API_FEMALE" \
-            "DESKTOP_DOWNLOAD_URL=$DESKTOP_DOWNLOAD_URL" |
+            "DESKTOP_DOWNLOAD_URL=$DESKTOP_DOWNLOAD_URL" \
+            "RIOT_API_KEY=$RIOT_API_KEY" |
             ssh -p "$SSH_PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
               "$SSH_USER@$SSH_HOST" "$SHA"

@@ -1,4 +1,15 @@
-import type { CreatedRoom, Gender, JoinResult, RandomAvatar, ServerConfig } from '../../server/src/protocol';
+import type {
+  CreatedRoom,
+  Gender,
+  JoinResult,
+  LolBuild,
+  LolLang,
+  LolTier,
+  LolMatchSummary,
+  LolMeta,
+  RandomAvatar,
+  ServerConfig,
+} from '../../server/src/protocol';
 import { translate, type MessageKey } from './i18n';
 
 /** Server error codes → translated messages (the server's own text is English-only). */
@@ -7,6 +18,11 @@ const ERROR_KEYS: Record<string, MessageKey> = {
   password: 'error.wrongPassword',
   not_found: 'error.notFound',
   avatar_failed: 'avatar.failed',
+  no_data: 'lol.noData',
+  riot_id: 'lol.badRiotId',
+  riot_key: 'lol.riotDown',
+  riot_busy: 'lol.riotBusy',
+  riot_down: 'lol.riotDown',
   no_avatars: 'avatar.failed',
 };
 
@@ -50,4 +66,20 @@ export const api = {
   joinRoom: (id: string, b: { password: string; name: string; deviceId: string }) =>
     request<JoinResult>('POST', `/api/rooms/${encodeURIComponent(id)}/join`, b),
   randomAvatar: (gender: Gender) => request<RandomAvatar>('POST', '/api/avatars/random', { gender }),
+
+  lolMeta: (lang: LolLang, rank: LolTier) => request<LolMeta>('GET', `/api/lol/meta?lang=${lang}&rank=${rank}`),
+  lolBuild: (champion: string, role: string | null, lang: LolLang, rank: LolTier) =>
+    request<LolBuild>(
+      'GET',
+      `/api/lol/build/${encodeURIComponent(champion)}?lang=${lang}&rank=${rank}${role ? `&role=${role}` : ''}`,
+    ),
+  lolAccount: (riotId: string) => request<{ riotId: string }>('GET', `/api/lol/account/${encodeURIComponent(riotId)}`),
+  lolLatest: (riotId: string, platform: string) =>
+    request<{ matchId: string | null }>('GET', `/api/lol/latest/${encodeURIComponent(riotId)}?platform=${platform}`),
+  lolMains: (riotId: string, platform: string, lang: LolLang) =>
+    request<{ champions: { id: string; key: number; name: string }[] }>(
+      'GET',
+      `/api/lol/mains/${encodeURIComponent(riotId)}?platform=${platform}&lang=${lang}`,
+    ),
+  lolMatch: (id: string) => request<LolMatchSummary>('GET', `/api/lol/match/${encodeURIComponent(id)}`),
 };

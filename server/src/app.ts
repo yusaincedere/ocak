@@ -5,10 +5,16 @@ import Fastify from 'fastify';
 import { config } from './config.js';
 import { avatarRoutes } from './routes/avatars.js';
 import { downloadRoutes } from './routes/downloads.js';
+import { lolRoutes } from './routes/lol.js';
+import type { RiotClient } from './lol/riot.js';
 import { roomRoutes } from './routes/rooms.js';
 
 /** Builds the HTTP app without starting it (used by index.ts and the tests). */
-export async function buildApp({ logger = true, rateLimits = true }: { logger?: boolean; rateLimits?: boolean } = {}) {
+export async function buildApp({
+  logger = true,
+  rateLimits = true,
+  riot = null,
+}: { logger?: boolean; rateLimits?: boolean; riot?: RiotClient | null } = {}) {
   const app = Fastify({
     logger: logger ? { level: config.isProd ? 'info' : 'debug' } : false,
     // In production the app only listens on 127.0.0.1 behind Caddy, so X-Forwarded-For is trustworthy.
@@ -22,6 +28,7 @@ export async function buildApp({ logger = true, rateLimits = true }: { logger?: 
   await app.register(roomRoutes);
   await app.register(downloadRoutes);
   await app.register(avatarRoutes);
+  await app.register(lolRoutes(riot));
 
   app.get('/api/health', async () => ({ ok: true }));
 

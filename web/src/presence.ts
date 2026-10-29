@@ -7,20 +7,30 @@ const DEAFENED = 'ocak.deafened';
 /** Push-to-talk users are "muted" between key presses; don't show them as muted. */
 const PTT = 'ocak.ptt';
 const AVATAR = 'ocak.avatar';
+/** Riot ID ("Name#TAG"), so post-game cards know who in the game is one of us. */
+const RIOT = 'ocak.riot';
 
 export const isDeafened = (p: Participant) => p.attributes?.[DEAFENED] === '1';
 export const usesPushToTalk = (p: Participant) => p.attributes?.[PTT] === '1';
 /** Someone's profile picture; only same-origin pictures from our server are accepted. */
 export const avatarOf = (p: Participant): AvatarPick | null => parsePick(p.attributes?.[AVATAR]);
 
+/** Someone's Riot account ("Name#TAG|tr1" in the attribute). */
+export function riotOf(p: Participant): { riotId: string; platform: string } | null {
+  const m = p.attributes?.[RIOT]?.match(/^(.{3,16}#[^\s#|]{2,5})(?:\|([a-z]{2,4}\d?))?$/u);
+  return m ? { riotId: m[1]!, platform: m[2] ?? 'tr1' } : null;
+}
+export const riotIdOf = (p: Participant) => riotOf(p)?.riotId ?? null;
+
 export function setPresence(
   local: LocalParticipant,
-  presence: { deafened?: boolean; ptt?: boolean; avatar?: AvatarPick | null },
+  presence: { deafened?: boolean; ptt?: boolean; avatar?: AvatarPick | null; riot?: { riotId: string; platform: string } | null },
 ) {
   const attrs: Record<string, string> = {};
   if (presence.deafened !== undefined) attrs[DEAFENED] = presence.deafened ? '1' : '';
   if (presence.ptt !== undefined) attrs[PTT] = presence.ptt ? '1' : '';
   if (presence.avatar !== undefined) attrs[AVATAR] = presence.avatar ? serializePick(presence.avatar) : '';
+  if (presence.riot !== undefined) attrs[RIOT] = presence.riot ? `${presence.riot.riotId}|${presence.riot.platform}` : '';
   return local.setAttributes(attrs).catch(() => {});
 }
 

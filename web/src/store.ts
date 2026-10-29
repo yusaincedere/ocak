@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { ServerConfig } from '../../server/src/protocol';
+import type { LolMeta, LolTier, ServerConfig } from '../../server/src/protocol';
 import type { AvatarPick } from './avatar';
 import type { DesktopSettings } from './desktop-bridge';
 import {
@@ -7,8 +7,13 @@ import {
   getLang,
   getName,
   getNoiseReduction,
+  getLolRank,
+  getRiotAccount,
   getVolumes,
   saveNoiseReduction,
+  saveLolRank,
+  saveRiotAccount,
+  type RiotAccount,
   saveVolumes,
   setAvatar as saveAvatar,
   setLang as saveLang,
@@ -38,6 +43,11 @@ interface State {
   /** Per-friend volume (0..2), keyed by device id. */
   volumes: Record<string, number>;
   noiseReduction: boolean;
+  riot: RiotAccount | null;
+  /** /api/lol/meta, once loaded (enabled: false when the server has no Riot key) */
+  lolMeta: LolMeta | null;
+  /** LoL stats from this rank and above */
+  lolRank: LolTier;
 
   setLang: (l: Lang) => void;
   setName: (n: string) => void;
@@ -50,6 +60,9 @@ interface State {
   setPttActive: (v: boolean) => void;
   setVolume: (deviceId: string, volume: number) => void;
   setNoiseReduction: (on: boolean) => void;
+  setRiot: (a: RiotAccount | null) => void;
+  setLolMeta: (m: LolMeta | null) => void;
+  setLolRank: (r: LolTier) => void;
 }
 
 export const useStore = create<State>((set) => ({
@@ -64,6 +77,9 @@ export const useStore = create<State>((set) => ({
   pttActive: false,
   volumes: getVolumes(),
   noiseReduction: getNoiseReduction(),
+  riot: getRiotAccount(),
+  lolMeta: null,
+  lolRank: getLolRank(),
 
   setLang: (lang) => {
     saveLang(lang);
@@ -93,5 +109,14 @@ export const useStore = create<State>((set) => ({
   setNoiseReduction: (noiseReduction) => {
     saveNoiseReduction(noiseReduction);
     set({ noiseReduction });
+  },
+  setRiot: (riot) => {
+    saveRiotAccount(riot);
+    set({ riot });
+  },
+  setLolMeta: (lolMeta) => set({ lolMeta }),
+  setLolRank: (lolRank) => {
+    saveLolRank(lolRank);
+    set({ lolRank });
   },
 }));

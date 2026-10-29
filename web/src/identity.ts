@@ -1,5 +1,5 @@
 // Everything about "you" lives in this browser / desktop app. No accounts.
-import type { Gender } from '../../server/src/protocol';
+import { DEFAULT_LOL_RANK, isLolTier, type Gender, type LolTier } from '../../server/src/protocol';
 import { parsePick, serializePick, type AvatarPick } from './avatar';
 
 // If local storage is cleared you just pick your name again.
@@ -14,6 +14,9 @@ const KEY = {
   gender: 'ocak.gender',
   volumes: 'ocak.volumes',
   noiseReduction: 'ocak.noiseReduction',
+  riot: 'ocak.riot',
+  lolRecent: 'ocak.lolRecent',
+  lolRank: 'ocak.lolRank',
 };
 
 const memory = new Map<string, string>(); // fallback when storage is blocked (private mode etc.)
@@ -81,6 +84,39 @@ export const saveVolumes = (v: Record<string, number>) => write(KEY.volumes, JSO
 /** Noise reduction on the microphone: on unless turned off. */
 export const getNoiseReduction = () => read(KEY.noiseReduction) !== 'off';
 export const saveNoiseReduction = (on: boolean) => write(KEY.noiseReduction, on ? 'on' : 'off');
+
+/** League of Legends account for post-game cards: Riot ID ("Name#TAG") and server. */
+export interface RiotAccount {
+  riotId: string;
+  platform: 'tr1' | 'euw1' | 'eun1';
+}
+export function getRiotAccount(): RiotAccount | null {
+  try {
+    const v = JSON.parse(read(KEY.riot) ?? 'null') as RiotAccount | null;
+    return v && typeof v.riotId === 'string' && /^.{3,16}#[^\s#]{2,5}$/u.test(v.riotId) && ['tr1', 'euw1', 'eun1'].includes(v.platform) ? v : null;
+  } catch {
+    return null;
+  }
+}
+export const saveRiotAccount = (a: RiotAccount | null) => write(KEY.riot, a ? JSON.stringify(a) : null);
+
+/** Champions looked up recently in the LoL panel (Data Dragon ids). */
+export function getRecentChampions(): string[] {
+  try {
+    const v = JSON.parse(read(KEY.lolRecent) ?? '[]') as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string' && /^[A-Za-z]{2,20}$/.test(x)).slice(0, 8) : [];
+  } catch {
+    return [];
+  }
+}
+export const saveRecentChampions = (ids: string[]) => write(KEY.lolRecent, JSON.stringify(ids.slice(0, 8)));
+
+/** Whose games the LoL stats come from: this rank and above. */
+export function getLolRank(): LolTier {
+  const v = read(KEY.lolRank);
+  return isLolTier(v) ? v : DEFAULT_LOL_RANK;
+}
+export const saveLolRank = (rank: LolTier) => write(KEY.lolRank, rank);
 
 export const getCreateCode = () => read(KEY.createCode);
 export const setCreateCode = (code: string | null) => write(KEY.createCode, code);

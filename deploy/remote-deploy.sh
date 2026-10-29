@@ -8,11 +8,12 @@
 # $SSH_ORIGINAL_COMMAND instead (the key can then run nothing but this script).
 #
 # Optional app settings can be piped in as KEY=value lines (the Deploy workflow sends the
-# ones set as GitHub variables). Only the keys in SETTINGS are accepted; each must be a
-# plain http(s) URL. They're written into deploy/.env before the app restarts.
+# ones set as GitHub variables/secrets). Only the keys in SETTINGS are accepted; URLs must be
+# plain http(s) URLs and the Riot key must look like one. They're written into deploy/.env
+# before the app restarts.
 set -euo pipefail
 
-SETTINGS=(AVATAR_API_MALE AVATAR_API_FEMALE DESKTOP_DOWNLOAD_URL)
+SETTINGS=(AVATAR_API_MALE AVATAR_API_FEMALE DESKTOP_DOWNLOAD_URL RIOT_API_KEY)
 
 # Everything lives in main(), which bash reads completely before running it,
 # so the script can safely update its own file during `git checkout`.
@@ -69,7 +70,12 @@ apply_settings() {
       continue
     fi
     [[ -z $value ]] && continue # not set on GitHub: keep whatever the server has
-    if [[ ${#value} -gt 2000 || ! $value =~ ^https?://[^[:space:]\'\"\`\$\\]+$ ]]; then
+    if [[ $key == RIOT_API_KEY ]]; then
+      if [[ ! $value =~ ^RGAPI-[0-9a-fA-F-]{36}$ ]]; then
+        echo "Ignoring setting $key: doesn't look like a Riot API key" >&2
+        continue
+      fi
+    elif [[ ${#value} -gt 2000 || ! $value =~ ^https?://[^[:space:]\'\"\`\$\\]+$ ]]; then
       echo "Ignoring setting $key: not a plain http(s) URL" >&2
       continue
     fi
