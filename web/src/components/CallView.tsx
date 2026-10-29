@@ -1,28 +1,28 @@
 import {
   LiveKitRoom,
-  useChat,
   useConnectionState,
   useLocalParticipant,
   useParticipants,
   useRoomContext,
 } from '@livekit/components-react';
 import { ConnectionState, RoomEvent } from 'livekit-client';
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { leaveCall, roomOptions } from '../call';
 import { desktop } from '../desktop-bridge';
 import { useLolMeta } from '../lol';
 import { translate, useT } from '../i18n';
 import { roomLink } from '../links';
-import { setPresence } from '../presence';
+import { assignColors, resetColors, setPresence } from '../presence';
 import { sounds } from '../sounds';
 import { useStore, type Call } from '../store';
 import { CallAudio, NoiseReductionSync } from './CallAudio';
+import { ChatPanel, useCallChat, useChatSound } from './Chat';
 import { DesktopIntegration, usePushToTalk } from './DesktopIntegration';
 import { DesktopSettings } from './DesktopSettings';
 import { LolPanel } from './LolPanel';
 import { PostGameCard, usePostGame } from './PostGame';
 import { CopyButton, NameChip } from './Home';
-import { Chat, Gear, LolLogo, Send, UserPlus, X } from './Icons';
+import { Chat, Gear, LolLogo, UserPlus } from './Icons';
 import { VolumeMenu } from './VolumeMenu';
 import { SharerControl, ViewerControl } from './RemoteControl';
 import { ScreenPicker } from './ScreenPicker';
@@ -77,22 +77,19 @@ function CallLayout({ call }: { call: Call }) {
   const lolMeta = useLolMeta();
   const postGame = usePostGame();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const chat = useChat();
+  // Everyone gets their own color before anything below draws an avatar or a message.
+  assignColors(participants.map((p) => p.identity));
+  useEffect(() => resetColors, []);
+  const chat = useCallChat();
   const [seen, setSeen] = useState(0);
   const t = useT();
 
-  // Count unread chat while the panel is closed; ping on messages from others.
-  const lastCount = useRef(0);
+  // Count unread chat while the panel is closed; a sound for messages from others.
+  useChatSound(chat.items, chatOpen);
   useEffect(() => {
-    const msgs = chat.chatMessages;
-    if (msgs.length > lastCount.current) {
-      const last = msgs[msgs.length - 1];
-      if (!chatOpen && last && !last.from?.isLocal) sounds.message();
-    }
-    lastCount.current = msgs.length;
-    if (chatOpen) setSeen(msgs.length);
-  }, [chat.chatMessages, chatOpen]);
-  const unread = chatOpen ? 0 : chat.chatMessages.length - seen;
+    if (chatOpen) setSeen(chat.items.length);
+  }, [chat.items, chatOpen]);
+  const unread = chatOpen ? 0 : chat.items.filter((m, i) => i >= seen && !m.isLocal).length;
 
   const status =
     connection === ConnectionState.Connecting
@@ -232,79 +229,4 @@ function CallSounds() {
     };
   }, [room]);
   return null;
-}
-
-// ---------- in-call chat (lives only as long as the call; nothing is stored) ----------
-
-const URL_RE = /(https?:\/\/[^\s<]+[^\s<.,:;"')\]!?])/g;
-function linkify(text: string): ReactNode[] {
-  return text.split(URL_RE).map((part, i) =>
-    i % 2 === 1 ? (
-      <a key={i} href={part} target="_blank" rel="noreferrer noopener">
-        {part}
-      </a>
-    ) : (
-      <Fragment key={i}>{part}</Fragment>
-    ),
-  );
-}
-
-function ChatPanel({ chat, onClose }: { chat: ReturnType<typeof useChat>; onClose: () => void }) {
-  const [text, setText] = useState('');
-  const t = useT();
-  const lang = useStore((s) => s.lang);
-  const timeFmt = useMemo(() => new Intl.DateTimeFormat(lang === 'tr' ? 'tr-TR' : 'en-GB', { hour: '2-digit', minute: '2-digit' }), [lang]);
-  const list = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    if (list.current) list.current.scrollTop = list.current.scrollHeight;
-  }, [chat.chatMessages.length]);
-
-  const send = async (e: FormEvent) => {
-    e.preventDefault();
-    const msg = text.trim();
-    if (!msg) return;
-    setText('');
-    try {
-      await chat.send(msg);
-    } catch {
-      useStore.getState().setNotice(t('chat.notSent'));
-    }
-  };
-
-  return (
-    <aside className="chat-panel">
-      <header>
-        <strong>{t('chat.title')}</strong>
-        <span className="muted small">{t('chat.subtitle')}</span>
-        <div className="spacer" />
-        <IconButton label={t('chat.close')} onClick={onClose}>
-          <X size={16} />
-        </IconButton>
-      </header>
-      <div className="chat-list" ref={list}>
-        {chat.chatMessages.length === 0 && <p className="muted small center">{t('chat.empty')}</p>}
-        {chat.chatMessages.map((m, i) => {
-          const prev = chat.chatMessages[i - 1];
-          const grouped = prev && prev.from?.identity === m.from?.identity && m.timestamp - prev.timestamp < 120_000;
-          return (
-            <div key={m.id ?? i} className={`chat-msg${grouped ? ' grouped' : ''}`}>
-              {!grouped && (
-                <div className="chat-head">
-                  <strong>{m.from?.isLocal ? t('common.you') : m.from?.name || t('common.someone')}</strong>
-                  <span className="muted small">{timeFmt.format(m.timestamp)}</span>
-                </div>
-              )}
-              <div className="chat-text">{linkify(m.message)}</div>
-            </div>
-          );
-        })}
-      </div>
-      <form className="chat-input" onSubmit={send}>
-        <input className="field" value={text} onChange={(e) => setText(e.target.value)} placeholder={t('chat.placeholder')} autoFocus />
-        <IconButton label={t('chat.send')} onClick={() => {}} disabled={!text.trim()}>
-          <Send size={16} />
-        </IconButton>
-      </form>
-    </aside>
-  );
 }

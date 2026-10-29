@@ -93,8 +93,8 @@
   "chat.title": "Chat",
   "chat.subtitle": "Only people in this call see it",
   "chat.close": "Close chat",
-  "chat.empty": "No messages yet.",
-  "chat.placeholder": "Message",
+  "chat.empty": "No messages yet. Write something or paste a picture.",
+  "chat.placeholder": "Write a message…",
   "chat.send": "Send",
   "chat.notSent": "Message not sent",
   "picker.title": "Share your screen",
@@ -233,5 +233,15 @@
   "lol.rank.EMERALD": "Emerald+",
   "lol.rank.DIAMOND": "Diamond+",
   "lol.rank.MASTER": "Master+",
-  "lol.fewData": "Not much data yet"
+  "lol.fewData": "Not much data yet",
+  "chat.attach": "Send a picture",
+  "chat.dropHere": "Drop to send the picture",
+  "chat.imageType": "Only PNG, JPG, WebP or GIF pictures can be sent.",
+  "chat.imageTooBig": "The picture is too big (8 MB at most).",
+  "chat.imageFailed": "The picture couldn't be sent.",
+  "chat.imageGone": "Picture no longer available (older ones are cleared).",
+  "chat.openImage": "Enlarge",
+  "common.close": "Close",
+  "settings.chatSound": "Message sound",
+  "settings.chatSoundDesc": "Plays a short sound for new messages while the chat is closed or you're in another window."
 }

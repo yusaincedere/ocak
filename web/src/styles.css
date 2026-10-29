@@ -13,7 +13,8 @@
   --ok: #4ade80;
   --danger: #ff5a5f;
   --radius: 10px;
-  --font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Bricolage Grotesque: bundled with the app (see main.tsx), full Turkish support */
+  --font: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   color-scheme: dark;
 }
@@ -33,6 +34,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font: 15px/1.45 var(--font);
+  font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -812,44 +814,306 @@ a {
   border: 1px solid var(--line);
   overflow: hidden;
 }
-.chat-panel header {
+/* ---------- In-call chat ----------
+   Everyone's messages are tinted with their call color; your own are solid in your color with
+   dark text, so "me" reads at a glance. */
+
+.chat-box {
+  position: relative;
+}
+.chat-top {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 8px 8px 14px;
+  padding: 12px 8px 11px 16px;
   border-bottom: 1px solid var(--line);
 }
+.chat-title {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.chat-title strong {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+.chat-title span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
 .chat-list {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 14px 12px 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-active) transparent;
 }
-.chat-msg {
-  margin-top: 10px;
+.chat-empty {
+  max-width: 220px;
+  margin: 28px auto 0;
+  color: var(--text-3);
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: center;
 }
-.chat-msg.grouped {
-  margin-top: 2px;
+
+/* One person's messages in a row: avatar, name + time, then their bubbles. */
+.chat-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 14px;
+}
+.chat-group:first-child {
+  margin-top: 0;
+}
+.chat-group.mine {
+  flex-direction: row-reverse;
+}
+.chat-avatar {
+  --size: 32px;
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--size);
+  height: var(--size);
+  margin-top: 1px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--c) 24%, var(--bg-3));
+  color: var(--c);
+  box-shadow: 0 0 0 2px var(--bg-2), 0 0 0 3.5px color-mix(in srgb, var(--c) 55%, transparent);
+}
+.chat-group-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+  max-width: calc(100% - 41px);
+}
+.chat-group.mine .chat-group-body {
+  align-items: flex-end;
 }
 .chat-head {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  font-size: 14px;
+  gap: 7px;
+  padding: 0 3px 1px;
 }
-.chat-text {
-  white-space: pre-wrap;
+.chat-head strong {
+  color: var(--c);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.chat-time {
+  color: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-bubble {
+  max-width: 100%;
+  padding: 8px 12px 9px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--c) 15%, var(--bg-3));
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.38;
+  white-space: pre-wrap; /* keeps the line breaks people type */
   overflow-wrap: anywhere;
-  font-size: 14px;
 }
+/* yours: solid in your color */
+.chat-group.mine .chat-bubble {
+  background: var(--c);
+  color: #15161a;
+}
+/* the corner nearest the avatar is tucked in, the rest of a run stays round */
+.chat-group:not(.mine) .chat-group-body > :nth-child(2) {
+  border-top-left-radius: 6px;
+}
+.chat-group.mine .chat-group-body > :nth-child(2) {
+  border-top-right-radius: 6px;
+}
+.chat-bubble a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.chat-image {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  background: var(--bg-3);
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--c) 45%, transparent);
+  cursor: zoom-in;
+}
+.chat-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 240px;
+  object-fit: contain;
+}
+.chat-image:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.chat-image.sending img {
+  opacity: 0.6;
+}
+.chat-image.failed img {
+  opacity: 0.35;
+}
+.chat-image-progress {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+.chat-image-progress span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.15s;
+}
+.chat-image-failed {
+  position: absolute;
+  inset: auto 8px 8px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* new messages pop in (a response to someone sending, not decoration) */
+@media (prefers-reduced-motion: no-preference) {
+  .chat-bubble,
+  .chat-image {
+    animation: chat-in 0.18s ease-out;
+  }
+}
+@keyframes chat-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+
+/* the composer: one rounded box with the picture and send buttons inside */
 .chat-input {
   display: flex;
-  gap: 6px;
-  padding: 10px;
-  border-top: 1px solid var(--line);
+  align-items: flex-end;
+  gap: 2px;
+  margin: 0 10px 10px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--bg-3);
+  transition: border-color 0.12s;
 }
-.chat-input .field {
-  padding: 9px 10px;
-  font-size: 14px;
+.chat-input:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--line));
+}
+.chat-input .icon-btn {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+}
+.chat-input textarea.field {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 7px 4px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  line-height: 20px;
+  resize: none;
+}
+.chat-input textarea.field:focus {
+  outline: none;
+}
+.chat-send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.chat-send:disabled {
+  cursor: default;
+}
+.chat-input.has-text .chat-send {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.chat-send:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* dragging a picture over the chat */
+.chat-box.dragging {
+  border-color: var(--accent);
+}
+.chat-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: zoom-out;
+}
+.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  cursor: default;
+}
+.lightbox-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
 }
 
 /* ---------- Toast ---------- */
@@ -2185,4 +2449,9 @@ a {
   .pg-mini {
     display: none;
   }
+}
+
+/* LiveKit's components (video tiles, names on them) use the app's font too. */
+[data-lk-theme] {
+  --lk-font-family: var(--font);
 }

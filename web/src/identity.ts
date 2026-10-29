@@ -14,6 +14,7 @@ const KEY = {
   gender: 'ocak.gender',
   volumes: 'ocak.volumes',
   noiseReduction: 'ocak.noiseReduction',
+  chatSound: 'ocak.chatSound',
   riot: 'ocak.riot',
   lolRecent: 'ocak.lolRecent',
   lolRank: 'ocak.lolRank',
@@ -84,6 +85,8 @@ export const saveVolumes = (v: Record<string, number>) => write(KEY.volumes, JSO
 /** Noise reduction on the microphone: on unless turned off. */
 export const getNoiseReduction = () => read(KEY.noiseReduction) !== 'off';
 export const saveNoiseReduction = (on: boolean) => write(KEY.noiseReduction, on ? 'on' : 'off');
+export const getChatSound = () => read(KEY.chatSound) !== 'off';
+export const saveChatSound = (on: boolean) => write(KEY.chatSound, on ? 'on' : 'off');
 
 /** League of Legends account for post-game cards: Riot ID ("Name#TAG") and server. */
 export interface RiotAccount {

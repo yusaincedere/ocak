@@ -93,8 +93,8 @@
   "chat.title": "Sohbet",
   "chat.subtitle": "Sadece bu görüşmedekiler görür",
   "chat.close": "Sohbeti kapat",
-  "chat.empty": "Henüz mesaj yok.",
-  "chat.placeholder": "Mesaj",
+  "chat.empty": "Henüz mesaj yok. Bir şey yaz ya da bir resim yapıştır.",
+  "chat.placeholder": "Mesaj yaz…",
   "chat.send": "Gönder",
   "chat.notSent": "Mesaj gönderilemedi",
   "picker.title": "Ekranını paylaş",
@@ -233,5 +233,15 @@
   "lol.rank.EMERALD": "Zümrüt+",
   "lol.rank.DIAMOND": "Elmas+",
   "lol.rank.MASTER": "Usta+",
-  "lol.fewData": "Henüz az veri"
+  "lol.fewData": "Henüz az veri",
+  "chat.attach": "Resim gönder",
+  "chat.dropHere": "Resmi göndermek için bırak",
+  "chat.imageType": "Sadece PNG, JPG, WebP veya GIF resim gönderilebilir.",
+  "chat.imageTooBig": "Resim çok büyük (en fazla 8 MB).",
+  "chat.imageFailed": "Resim gönderilemedi.",
+  "chat.imageGone": "Resim artık yok (eski resimler silinir).",
+  "chat.openImage": "Büyüt",
+  "common.close": "Kapat",
+  "settings.chatSound": "Mesaj sesi",
+  "settings.chatSoundDesc": "Sohbet kapalıyken ya da başka bir pencereye bakarken yeni mesaj gelince kısa bir ses çalar."
 }

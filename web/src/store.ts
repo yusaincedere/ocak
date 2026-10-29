@@ -4,12 +4,14 @@ import type { AvatarPick } from './avatar';
 import type { DesktopSettings } from './desktop-bridge';
 import {
   getAvatar,
+  getChatSound,
   getLang,
   getName,
   getNoiseReduction,
   getLolRank,
   getRiotAccount,
   getVolumes,
+  saveChatSound,
   saveNoiseReduction,
   saveLolRank,
   saveRiotAccount,
@@ -19,6 +21,7 @@ import {
   setLang as saveLang,
 } from './identity';
 import type { Lang } from './i18n';
+import { sounds } from './sounds';
 
 export interface Call {
   roomId: string;
@@ -43,6 +46,8 @@ interface State {
   /** Per-friend volume (0..2), keyed by device id. */
   volumes: Record<string, number>;
   noiseReduction: boolean;
+  /** a sound for new chat messages */
+  chatSound: boolean;
   riot: RiotAccount | null;
   /** /api/lol/meta, once loaded (enabled: false when the server has no Riot key) */
   lolMeta: LolMeta | null;
@@ -60,6 +65,7 @@ interface State {
   setPttActive: (v: boolean) => void;
   setVolume: (deviceId: string, volume: number) => void;
   setNoiseReduction: (on: boolean) => void;
+  setChatSound: (on: boolean) => void;
   setRiot: (a: RiotAccount | null) => void;
   setLolMeta: (m: LolMeta | null) => void;
   setLolRank: (r: LolTier) => void;
@@ -77,6 +83,7 @@ export const useStore = create<State>((set) => ({
   pttActive: false,
   volumes: getVolumes(),
   noiseReduction: getNoiseReduction(),
+  chatSound: getChatSound(),
   riot: getRiotAccount(),
   lolMeta: null,
   lolRank: getLolRank(),
@@ -109,6 +116,11 @@ export const useStore = create<State>((set) => ({
   setNoiseReduction: (noiseReduction) => {
     saveNoiseReduction(noiseReduction);
     set({ noiseReduction });
+  },
+  setChatSound: (chatSound) => {
+    saveChatSound(chatSound);
+    set({ chatSound });
+    if (chatSound) sounds.message(); // a sample
   },
   setRiot: (riot) => {
     saveRiotAccount(riot);
