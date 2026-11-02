@@ -174,7 +174,7 @@ function CallLayout({ call }: { call: Call }) {
       </footer>
 
       <VolumeMenu onMessage={privateChats.open} />
-      {rouletteOpen && lolMeta?.enabled && <ChampionRoulette meta={lolMeta} onClose={() => setRouletteOpen(false)} onPick={(id, lane) => {
+      {rouletteOpen && lolMeta?.enabled && <ChampionRoulette meta={lolMeta} onLanded={(champion) => void chat.announceRoulette(champion)} onClose={() => setRouletteOpen(false)} onPick={(id, lane) => {
         setRoulettePick({ id, lane });
         setPanel('lol');
       }} />}

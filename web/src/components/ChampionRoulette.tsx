@@ -9,10 +9,11 @@ import { X } from './Icons';
 const CELL = 96;
 const offset = (index: number) => `translateX(calc(50% - ${(index + 0.5) * CELL}px))`;
 
-export function ChampionRoulette({ meta, onClose, onPick }: {
+export function ChampionRoulette({ meta, onClose, onPick, onLanded }: {
   meta: LolMeta;
   onClose: () => void;
   onPick: (id: string, lane?: LolRole) => void;
+  onLanded: (champion: string) => void;
 }) {
   const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
@@ -22,6 +23,8 @@ export function ChampionRoulette({ meta, onClose, onPick }: {
   const [sound, setSound] = useState(false);
   const soundOn = useRef(sound);
   soundOn.current = sound;
+  const landed = useRef(onLanded);
+  landed.current = onLanded;
   const [spin, setSpin] = useState<ReturnType<typeof rouletteSpin>>(null);
   const [phase, setPhase] = useState<'ready' | 'spinning' | 'landed'>('ready');
   const pool = roulettePool(meta.champions ?? [], lane);
@@ -53,6 +56,7 @@ export function ChampionRoulette({ meta, onClose, onPick }: {
       if (cancelled) return;
       busy.current = false;
       setPhase('landed');
+      landed.current(spin.winner.name);
       if (soundOn.current) sounds.rouletteWin();
     }).catch(() => { /* Closing the dialog cancels the reel. */ });
     return () => {

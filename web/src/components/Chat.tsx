@@ -29,6 +29,7 @@ import { EmojiTray } from './EmojiTray';
 import { Chat, ChevronDown, ChevronUp, Lock, Picture, Send, Smile, X } from './Icons';
 
 export const IMAGE_TOPIC = 'ocak-image';
+const ROULETTE_TOPIC = 'ocak-roulette';
 /** Only plain image formats (no SVG: it can carry scripts). */
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 const MAX_SEND_BYTES = 8 * 1024 * 1024;
@@ -51,6 +52,7 @@ export interface ChatItem {
   isLocal: boolean;
   timestamp: number;
   text?: string;
+  roulette?: string;
   image?: { url: string | null; status: 'sending' | 'sent' | 'failed'; progress?: number };
   /** private chats: the device of the other person */
   thread?: string;
@@ -166,7 +168,7 @@ export async function sendPicture(
 }
 
 /** Text and image messages of this call, oldest first, plus ways to send them. */
-export function useCallChat(): ChatThread {
+export function useCallChat(): ChatThread & { announceRoulette: (champion: string) => Promise<void> } {
   const chat = useChat();
   const room = useRoomContext();
   const held = useHeldItems();
@@ -196,6 +198,18 @@ export function useCallChat(): ChatThread {
     room.registerByteStreamHandler(IMAGE_TOPIC, (reader, { identity }) => void receive(reader, identity).catch(() => {}));
     return () => room.unregisterByteStreamHandler(IMAGE_TOPIC);
   }, [room, add, urlFor]);
+
+  useEffect(() => {
+    room.registerTextStreamHandler(ROULETTE_TOPIC, (reader, { identity }) => {
+      void reader.readAll().then((champion) => {
+        if (!champion || champion.length > 100) return;
+        const from = room.getParticipantByIdentity(identity) ?? null;
+        add({ id: reader.info.id, identity, from, name: from?.name || identity,
+          isLocal: false, timestamp: reader.info.timestamp || Date.now(), roulette: champion });
+      }).catch(() => {});
+    });
+    return () => room.unregisterTextStreamHandler(ROULETTE_TOPIC);
+  }, [room, add]);
 
   const items = useMemo(() => {
     const texts: ChatItem[] = chat.chatMessages.map((m) => ({
@@ -229,7 +243,18 @@ export function useCallChat(): ChatThread {
 
   const sendImage = (file: File) => sendPicture(room, held, file, { topic: IMAGE_TOPIC });
 
-  return { items, sendText, sendImage, draft, setDraft, sending, sendFailed };
+  const announceRoulette = async (champion: string) => {
+    try {
+      const sent = await room.localParticipant.sendText(champion, { topic: ROULETTE_TOPIC });
+      const local = room.localParticipant;
+      add({ id: sent.id, identity: local.identity, from: local, name: local.name || local.identity,
+        isLocal: true, timestamp: Date.now(), roulette: champion });
+    } catch {
+      useStore.getState().setNotice(translate('roulette.announceFailed'));
+    }
+  };
+
+  return { items, sendText, sendImage, announceRoulette, draft, setDraft, sending, sendFailed };
 }
 
 /** Checks the type and size; big photos are scaled down (GIFs are sent as they are, to keep the animation). */
@@ -538,8 +563,10 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
               ) : (
                 <strong className="chat-name">{name}</strong>
               )}
-              <span className="chat-name-end">: </span>
-              {m.image ? (
+              <span className="chat-name-end">{m.roulette ? ' ' : ': '}</span>
+              {m.roulette ? (
+                <span className="chat-roulette">🎲 {t('roulette.announcement', { champion: m.roulette })}</span>
+              ) : m.image ? (
                 <ChatImage image={m.image} onOpen={setViewing} onLoad={followLatest} />
               ) : (
                 <span className="chat-text">{linkify(m.text ?? '')}</span>

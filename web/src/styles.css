@@ -1039,6 +1039,10 @@ button.chat-name:hover {
 .chat-text {
   white-space: pre-wrap; /* keeps the line breaks people type */
 }
+.chat-roulette {
+  color: #f3d38f;
+  font-weight: 700;
+}
 .chat-text a {
   color: var(--chat-accent);
   text-decoration-thickness: 1px;
@@ -1950,27 +1954,6 @@ button.chat-name:hover {
   width: 348px;
 }
 
-/* Champion club: a small casino machine, tucked behind the League panel. */
-.roulette-launch {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: calc(100% - 24px);
-  margin: 12px;
-  padding: 12px 14px;
-  border: 1px solid #66512c;
-  border-radius: 12px;
-  background: linear-gradient(120deg, #30241a, #1c1917 65%);
-  color: #e9cb8a;
-  text-align: left;
-  cursor: pointer;
-}
-.roulette-launch > span:first-child { font-size: 28px; }
-.roulette-launch > span:nth-child(2) { flex: 1; }
-.roulette-launch strong, .roulette-launch small { display: block; }
-.roulette-launch strong { font-size: 14px; }
-.roulette-launch small { margin-top: 3px; font-size: 11px; color: #bbaa90; }
-.roulette-launch:hover { border-color: #d9b575; background: linear-gradient(120deg, #42301d, #241f19); }
 .roulette-backdrop {
   position: fixed;
   inset: 0;
@@ -2065,7 +2048,7 @@ button.chat-name:hover {
 .roulette-foot { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-top: 22px; font-size: 10px; text-align: left; color: #b0a38f; }
 .roulette-foot > span { max-width: 360px; }
 .roulette-foot button { flex-shrink: 0; border: 0; background: none; padding: 5px; font-size: 11px; color: #dbbf8b; cursor: pointer; }
-.roulette-machine button:focus-visible, .roulette-launch:focus-visible { outline: 2px solid #ffe5ad; outline-offset: 3px; }
+.roulette-machine button:focus-visible { outline: 2px solid #ffe5ad; outline-offset: 3px; }
 @media (max-width: 480px) {
   .roulette-backdrop { padding: 12px; }
   .roulette-machine { max-height: calc(100dvh - 24px); padding: 12px 14px 16px; border-radius: 18px; }

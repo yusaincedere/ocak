@@ -3,6 +3,8 @@
   "chat.expand": "Sohbeti genişlet",
   "roulette.unavailable": "Şampiyon ruleti — League verileri kullanılamıyor",
   "roulette.title": "Şampiyon ruleti",
+  "roulette.announcement": "rulette {champion} kazandı!",
+  "roulette.announceFailed": "Rulet sonucu odayla paylaşılamadı.",
   "roulette.subtitle": "Koridorunu seç. Kolu çek. Şampiyonun şansına gelsin.",
   "roulette.launch": "Bir sonraki şampiyonunu şans seçsin",
   "roulette.lane": "İsteğe bağlı koridor",

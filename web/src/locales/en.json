@@ -3,6 +3,8 @@
   "chat.expand": "Expand chat",
   "roulette.unavailable": "Champion roulette — League data unavailable",
   "roulette.title": "Champion roulette",
+  "roulette.announcement": "rolled {champion}!",
+  "roulette.announceFailed": "Could not share the roulette result with the room.",
   "roulette.subtitle": "Pick a lane. Pull the lever. Let fate draft.",
   "roulette.launch": "Let the reel pick your next champion",
   "roulette.lane": "Optional lane",
