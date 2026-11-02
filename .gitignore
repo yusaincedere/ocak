@@ -10,3 +10,6 @@ deploy/livekit.yaml
 downloads/
 deploy/downloads/
 desktop/release/
+
+# Local project inventory, reviews, and planning notes
+/project-notes/

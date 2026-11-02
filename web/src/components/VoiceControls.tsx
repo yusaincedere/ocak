@@ -1,6 +1,7 @@
 import { MediaDeviceMenu, useLocalParticipant, useTrackToggle } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useCallback, type ReactNode } from 'react';
+import { mediaErrorKey } from '../media-errors';
 import { leaveCall, screenShareOptions } from '../call';
 import { desktop } from '../desktop-bridge';
 import { translate, useT, type MessageKey } from '../i18n';
@@ -46,7 +47,7 @@ type Device = 'microphone' | 'camera' | 'screen';
 const reportDeviceError = (what: Device) => (err: Error) => {
   console.warn(err);
   const device = translate(`controls.device.${what}` as MessageKey);
-  useStore.getState().setNotice(translate('controls.deviceError', { device, message: err.message }));
+  useStore.getState().setNotice(translate('controls.deviceError', { device, message: translate(mediaErrorKey(err)) }));
 };
 
 // Deafen also mutes the mic and remembers whether to turn it back on (like Discord).

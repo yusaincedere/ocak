@@ -2,6 +2,7 @@ import { app } from 'electron';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DesktopSettings, HotkeyBinding } from '../../web/src/desktop-bridge';
+import { overlayPreference } from './overlay-preference';
 
 const file = () => join(app.getPath('userData'), 'settings.json');
 
@@ -23,7 +24,7 @@ const defaults = (): DesktopSettings => ({
   pttBinding: null,
   muteShortcut: 'CommandOrControl+Shift+M',
   closeToTray: true,
-  overlay: true,
+  overlay: false,
   language: 'tr',
 });
 
@@ -37,7 +38,7 @@ export function getSettings(): DesktopSettings {
   } catch {
     /* first run */
   }
-  current = { ...defaults(), ...sanitize(saved) };
+  current = { ...defaults(), ...sanitize(saved), overlay: overlayPreference(saved) };
   // An env override always wins (handy for development).
   if (process.env.OCAK_SERVER_URL) current.serverUrl = process.env.OCAK_SERVER_URL;
   return current;
@@ -46,7 +47,7 @@ export function getSettings(): DesktopSettings {
 export function updateSettings(patch: unknown): DesktopSettings {
   current = { ...getSettings(), ...sanitize(patch) };
   try {
-    writeFileSync(file(), JSON.stringify(current, null, 2));
+    writeFileSync(file(), JSON.stringify({ ...current, overlayPreferenceVersion: 1 }, null, 2));
   } catch (err) {
     console.error('Could not save settings', err);
   }

@@ -17,6 +17,8 @@
         margin: 1px; border-radius: 12px; overflow: hidden;
         background: rgba(17, 18, 20, 0.9); border: 1px solid rgba(255, 255, 255, 0.08);
         backdrop-filter: blur(12px);
+        /* Drag anywhere on the panel except its explicit action buttons. */
+        -webkit-app-region: drag; app-region: drag; cursor: grab;
       }
       header {
         display: flex; align-items: center; gap: 8px; padding: 8px 6px 6px 10px;
@@ -25,7 +27,7 @@
       .live { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; flex-shrink: 0; }
       #room { flex: 1; font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 11px; color: #a4a6ad; }
       button {
-        -webkit-app-region: no-drag; border: 0; background: transparent; color: #a4a6ad; cursor: pointer;
+        -webkit-app-region: no-drag; app-region: no-drag; border: 0; background: transparent; color: #a4a6ad; cursor: pointer;
         display: inline-grid; place-items: center; border-radius: 7px; padding: 0;
       }
       button:hover { background: rgba(255, 255, 255, 0.08); color: #e9e9ec; }
@@ -92,7 +94,9 @@
       function applyStrings(s) {
         T = { ...T, ...s };
         $('open').title = T.open;
+        $('open').setAttribute('aria-label', T.open);
         $('leave').title = T.leave;
+        $('leave').setAttribute('aria-label', T.leave);
         render(last);
       }
 
@@ -104,9 +108,11 @@
         $('mute').innerHTML = s.muted ? I.micOff : I.mic;
         $('mute').className = s.muted ? 'off' : '';
         $('mute').title = s.muted ? T.unmute : T.mute;
+        $('mute').setAttribute('aria-label', $('mute').title);
         $('deafen').innerHTML = s.deafened ? I.headOff : I.head;
         $('deafen').className = s.deafened ? 'off' : '';
         $('deafen').title = s.deafened ? T.undeafen : T.deafen;
+        $('deafen').setAttribute('aria-label', $('deafen').title);
 
         // Talking people first, then everyone else in join order.
         const people = [...s.participants].sort((a, b) => Number(b.speaking) - Number(a.speaking));

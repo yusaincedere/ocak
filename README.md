@@ -26,13 +26,17 @@ Media is routed through [LiveKit](https://livekit.io), an open-source WebRTC SFU
 
 ## Quick start (local)
 
-Requires [Docker](https://docs.docker.com/get-docker/).
+Requires [Docker](https://docs.docker.com/get-docker/) and Node.js 22.13+ for the local startup helper.
 
 ```bash
-docker compose up --build
+npm run docker:up
 ```
 
 Open **http://localhost:3000** and start a call. To test with a second participant, open the invite link in a private window.
+
+The helper detects your computer's LAN IPv4, saves `LIVEKIT_NODE_IP` in the local `.env`, and creates/updates the Docker stack. Firefox cannot use the loopback media address in the default Docker setup, so signalling can work while a call stays on Connecting. Keep using `localhost:3000` for the app; the LAN address is only the media destination. If several interfaces are detected, select one explicitly with `LIVEKIT_NODE_IP=192.168.1.100 npm run docker:up` (use your actual address). Re-run the helper after changing networks. You can start/stop the created stack in Docker Desktop afterward.
+
+Without Node, set `LIVEKIT_NODE_IP` to your LAN IPv4 in the root `.env`, then run `docker compose up -d --build`.
 
 > Browsers only allow microphone, camera and screen capture on `localhost` or HTTPS, so other devices can't join a local run. Deploy it to test across devices.
 
@@ -101,7 +105,7 @@ git pull && docker compose up -d --build    # update
 
 The desktop app (`desktop/`) is an Electron shell that loads an Ocak server and adds:
 
-- **Mini overlay:** a small always-on-top panel showing who's talking, with mute, deafen and leave. It appears while another app is focused during a call.
+- **Optional mini overlay (off by default):** enable it in Settings to show a small always-on-top panel while another app is focused during a call. Drag its header or participant area to move it; its dedicated Open button brings up Ocak. Mute, deafen and leave remain available. Existing installs reset the previous automatic-on preference once; enabling it again saves your choice.
 - **Tray controls:** mute, deafen and leave from the system tray. Closing the window keeps the call running.
 - **Push-to-talk:** any key or extra mouse button, and it works system-wide.
 - **Global mute shortcut:** `Ctrl+Shift+M` / `⌘⇧M` by default.

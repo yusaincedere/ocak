@@ -7,6 +7,7 @@ import {
 } from '@livekit/components-react';
 import { ConnectionState, RoomEvent } from 'livekit-client';
 import { useEffect, useRef, useState } from 'react';
+import { mediaErrorKey } from '../media-errors';
 import { leaveCall, roomOptions } from '../call';
 import { desktop } from '../desktop-bridge';
 import { useLolMeta } from '../lol';
@@ -51,9 +52,9 @@ export function CallView({ call }: { call: Call }) {
       }}
       onError={(err) => {
         // Errors after we pressed leave are just the connection closing.
-        if (useStore.getState().call) useStore.getState().setNotice(translate('call.problem', { message: err.message }));
+        if (useStore.getState().call) useStore.getState().setNotice(translate(mediaErrorKey(err)));
       }}
-      onMediaDeviceFailure={() => useStore.getState().setNotice(translate('call.deviceBlocked'))}
+      onMediaDeviceFailure={(failure) => useStore.getState().setNotice(translate(mediaErrorKey({ name: failure ?? 'Other' })))}
     >
       <CallAudio />
       <NoiseReductionSync />
@@ -105,7 +106,7 @@ function CallLayout({ call }: { call: Call }) {
           <span className="room-name">{call.roomId}</span>
           <InviteButton call={call} />
         </div>
-        <span className="muted small">
+        <span className="call-status muted small">
           {status ?? t('call.inCall', { n: participants.length })}
         </span>
         <div className="spacer" />

@@ -1,4 +1,4 @@
-import { useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { desktop, type DesktopSettings as Settings } from '../desktop-bridge';
 import { translate, useT } from '../i18n';
 import { useStore } from '../store';
@@ -29,6 +29,17 @@ function toAccelerator(e: KeyboardEvent): string | null {
 const prettyAccel = (a: string) => a.replace('CommandOrControl', isMac ? '⌘' : 'Ctrl').replace(/\+/g, ' + ');
 
 export function DesktopSettings({ onClose }: { onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const modal = dialog.current!;
+    const previous = document.activeElement;
+    modal.showModal();
+    return () => {
+      modal.close();
+      if (previous instanceof HTMLElement && previous.isConnected) previous.focus();
+    };
+  }, []);
+
   const settings = useStore((s) => s.desktopSettings);
   const [capturing, setCapturing] = useState(false);
   const [recordingMute, setRecordingMute] = useState(false);
@@ -57,8 +68,17 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal settings" role="dialog" aria-label={t('settings.title')}>
+    <dialog
+      ref={dialog}
+      className="modal-backdrop settings-backdrop"
+      aria-label={t('settings.title')}
+      onCancel={(e) => {
+        e.preventDefault();
+        if (!capturing) onClose();
+      }}
+      onMouseDown={(e) => e.target === e.currentTarget && !capturing && onClose()}
+    >
+      <div className="modal settings">
         <header className="modal-head">
           <h2>{t('settings.title')}</h2>
         </header>
@@ -76,6 +96,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
           <label className="switch">
             <input
               type="checkbox"
+              aria-label={t('audio.noise')}
               checked={noiseReduction}
               onChange={(e) => useStore.getState().setNoiseReduction(e.target.checked)}
             />
@@ -89,7 +110,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
             <p className="muted">{t('settings.chatSoundDesc')}</p>
           </div>
           <label className="switch">
-            <input type="checkbox" checked={chatSound} onChange={(e) => useStore.getState().setChatSound(e.target.checked)} />
+            <input type="checkbox" aria-label={t('settings.chatSound')} checked={chatSound} onChange={(e) => useStore.getState().setChatSound(e.target.checked)} />
             <span />
           </label>
         </section>
@@ -105,6 +126,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
               <label className="switch">
                 <input
                   type="checkbox"
+                  aria-label={t('settings.ptt')}
                   checked={settings.pushToTalk}
                   onChange={(e) => {
                     if (e.target.checked && !settings.pttBinding) void bindKey();
@@ -128,6 +150,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
                 <p className="muted">{t('settings.muteShortcutDesc')}</p>
               </div>
               <input
+                aria-label={t('settings.muteShortcut')}
                 className={`accel${recordingMute ? ' recording' : ''}`}
                 readOnly
                 value={recordingMute ? t('settings.pressKeys') : prettyAccel(settings.muteShortcut)}
@@ -135,7 +158,10 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
                 onBlur={() => setRecordingMute(false)}
                 onKeyDown={(e) => {
                   e.preventDefault();
-                  if (e.key === 'Escape') return (e.target as HTMLInputElement).blur();
+                  if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    return (e.target as HTMLInputElement).blur();
+                  }
                   const accel = toAccelerator(e);
                   if (accel) {
                     void save({ muteShortcut: accel });
@@ -151,7 +177,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
                 <p className="muted">{t('settings.overlayDesc')}</p>
               </div>
               <label className="switch">
-                <input type="checkbox" checked={settings.overlay} onChange={(e) => void save({ overlay: e.target.checked })} />
+                <input type="checkbox" aria-label={t('settings.overlay')} checked={settings.overlay} onChange={(e) => void save({ overlay: e.target.checked })} />
                 <span />
               </label>
             </section>
@@ -165,6 +191,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
                 <label className="switch">
                   <input
                     type="checkbox"
+                    aria-label={t('settings.tray')}
                     checked={settings.closeToTray}
                     onChange={(e) => void save({ closeToTray: e.target.checked })}
                   />
@@ -184,7 +211,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
                   if (!res.ok) setServerError(res.error ?? t('settings.invalidAddress'));
                 }}
               >
-                <input value={server} onChange={(e) => setServer(e.target.value)} />
+                <input aria-label={t('settings.server')} value={server} onChange={(e) => setServer(e.target.value)} />
                 <button className="btn" disabled={server === settings.serverUrl}>
                   {t('settings.switch')}
                 </button>
@@ -201,6 +228,6 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
           </button>
         </footer>
       </div>
-    </div>
+    </dialog>
   );
 }
