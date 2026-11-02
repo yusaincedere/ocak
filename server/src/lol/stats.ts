@@ -1,7 +1,7 @@
 // Build and counter statistics, aggregated per patch, rank bracket, champion and role in SQLite.
 // Queries add up a range of brackets ("Platinum+" = Platinum, Emerald, Diamond and Master).
 import { db } from '../db.js';
-import { LOL_TIERS, type LolTier } from '../protocol.js';
+import { LOL_TIERS, type LolRole, type LolTier } from '../protocol.js';
 import type { BuildRecord, Role } from './extract.js';
 
 // Stats from before rank brackets were tracked can't be split by rank: start over once
@@ -123,6 +123,26 @@ export function rolesOf(patch: string, champ: number, tiers: readonly LolTier[])
             WHERE patch = ? AND champ = ? AND tier IN (${t}) GROUP BY role ORDER BY games DESC`,
     tiers,
   ).all(patch, champ, ...tiers) as unknown as ChampRole[];
+}
+
+/** Lane eligibility for roulette, from the two latest collected patches in the selected ranks. */
+export function rouletteRoles(tiers: readonly LolTier[]): Map<number, LolRole[]> {
+  const patches = gamesPerPatch(tiers).slice(0, 2).map((p) => p.patch);
+  if (!patches.length) return new Map();
+  const rows = query(
+    (t) => `SELECT champ, role, SUM(games) AS games FROM lol_champ
+      WHERE tier IN (${t}) AND patch IN (${patches.map(() => '?').join(',')}) GROUP BY champ, role`,
+    tiers,
+  ).all(...tiers, ...patches) as unknown as { champ: number; role: LolRole; games: number }[];
+  const totals = new Map<number, number>();
+  for (const r of rows) totals.set(r.champ, (totals.get(r.champ) ?? 0) + r.games);
+  const result = new Map<number, LolRole[]>();
+  for (const r of rows) {
+    // Exclude accidental lane swaps and isolated off-role games.
+    if (r.games < Math.max(3, (totals.get(r.champ) ?? 0) * 0.05)) continue;
+    result.set(r.champ, [...(result.get(r.champ) ?? []), r.role]);
+  }
+  return result;
 }
 
 export function optionsOf(patch: string, champ: number, role: string, kind: OptionKind, tiers: readonly LolTier[]): Option[] {

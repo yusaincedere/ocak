@@ -6,7 +6,8 @@ import { buildFor, findChampion } from '../lol/builds.js';
 import { abilitiesOf, staticData } from '../lol/ddragon.js';
 import { latestMatchId, mainChampions, MATCH_ID, matchSummary, parseRiotId, resolveAccount } from '../lol/postgame.js';
 import { RiotError, type RiotClient } from '../lol/riot.js';
-import { gamesPerPatch } from '../lol/stats.js';
+import { gamesPerPatch, rouletteRoles } from '../lol/stats.js';
+import { rouletteLanes } from '../lol/roulette-lanes.js';
 
 const langOf = (q: unknown): LolLang => ((q as { lang?: string })?.lang === 'en' ? 'en' : 'tr');
 /** ?rank=EMERALD → Emerald and above (default Platinum+). */
@@ -29,16 +30,18 @@ export function lolRoutes(riot: RiotClient | null) {
   return async (app: FastifyInstance) => {
     app.get('/api/lol/meta', async (req): Promise<LolMeta> => {
       const data = staticData();
-      if (!riot || !data) return { enabled: false };
+      if (!riot) return { enabled: false };
+      if (!data) return { enabled: false, loading: true };
       const loc = langOf(req.query) === 'tr' ? 'tr_TR' : 'en_US';
       const newest = gamesPerPatch(tiersOf(req.query))[0];
+      const lanes = rouletteRoles(tiersOf(req.query));
       return {
         enabled: true,
         version: data.version,
         patch: newest?.patch ?? data.patch,
         games: newest?.games ?? 0,
         champions: [...data.champions.values()]
-          .map((c) => ({ id: c.id, key: c.key, name: c.name[loc] }))
+          .map((c) => ({ id: c.id, key: c.key, name: c.name[loc], roles: rouletteLanes(c.key, lanes.get(c.key)) }))
           .sort((a, b) => a.name.localeCompare(b.name, 'tr')),
       };
     });

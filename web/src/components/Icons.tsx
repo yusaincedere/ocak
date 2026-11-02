@@ -61,6 +61,18 @@ export const Chat = (p: P) => (
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
   </svg>
 );
+export const Dice = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3" y="3" width="18" height="18" rx="4" />
+    <g fill="currentColor" stroke="none">
+      <circle cx="8" cy="8" r="1.4" /><circle cx="16" cy="8" r="1.4" />
+      <circle cx="12" cy="12" r="1.4" />
+      <circle cx="8" cy="16" r="1.4" /><circle cx="16" cy="16" r="1.4" />
+    </g>
+  </svg>
+);
+export const ChevronDown = (p: P) => <svg {...base(p)}><path d="m6 9 6 6 6-6" /></svg>;
+export const ChevronUp = (p: P) => <svg {...base(p)}><path d="m6 15 6-6 6 6" /></svg>;
 export const Gear = (p: P) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="3" />
@@ -109,6 +121,12 @@ export const VolumeOff = (p: P) => (
 );
 /** The League helper: the "L" from public/lol.png, painted in the current text color like the other icons. */
 export const LolLogo = ({ size = 18 }: { size?: number }) => <span className="lol-logo" style={{ width: size, height: size }} aria-hidden />;
+export const Lock = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="4" y="11" width="16" height="10" rx="2" />
+    <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+  </svg>
+);
 export const Picture = (p: P) => (
   <svg {...base(p)}>
     <rect x="3" y="3" width="18" height="18" rx="2" />

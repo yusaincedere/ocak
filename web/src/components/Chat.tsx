@@ -1,10 +1,13 @@
 // In-call chat: text and images, only between the people in the call. Nothing is stored on the
 // server: text goes over LiveKit's chat, images as LiveKit byte streams straight to the others,
-// and both are gone when the call ends.
+// and both are gone when the call ends. The panel is also what private chats show in
+// (see PrivateChat.tsx).
 import { useChat, useRoomContext } from '@livekit/components-react';
-import type { ByteStreamReader, Participant } from 'livekit-client';
+import type { ByteStreamReader, Participant, Room } from 'livekit-client';
+import { createPortal } from 'react-dom';
 import {
   Fragment,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -18,12 +21,11 @@ import {
   type ReactNode,
 } from 'react';
 import { translate, useT } from '../i18n';
-import { avatarOf, colorFor, initials } from '../presence';
+import { colorFor } from '../presence';
 import { sounds } from '../sounds';
 import { useStore } from '../store';
 import { IconButton } from './VoiceControls';
-import { Picture, Send, X } from './Icons';
-import { AvatarPhoto } from './People';
+import { Chat, ChevronDown, ChevronUp, Lock, Picture, Send, X } from './Icons';
 
 export const IMAGE_TOPIC = 'ocak-image';
 /** Only plain image formats (no SVG: it can carry scripts). */
@@ -35,6 +37,9 @@ const MAX_SIDE = 2048;
 /** Images kept in memory per call; older ones are let go. */
 const KEEP_IMAGES = 60;
 const MAX_FILES_AT_ONCE = 6;
+/** With nothing going on the group chat's frame fades away; lines stay a little longer. */
+const QUIET_AFTER_MS = 6_000;
+const LINE_VISIBLE_MS = 14_000;
 
 export interface ChatItem {
   id: string;
@@ -46,21 +51,33 @@ export interface ChatItem {
   timestamp: number;
   text?: string;
   image?: { url: string | null; status: 'sending' | 'sent' | 'failed'; progress?: number };
+  /** private chats: the device of the other person */
+  thread?: string;
 }
 
-export type CallChat = ReturnType<typeof useCallChat>;
+/** What a chat panel shows and sends: the group chat and every private chat provide this. */
+export interface ChatThread {
+  items: ChatItem[];
+  sendText: (text: string) => Promise<void>;
+  sendImage: (file: File) => Promise<void>;
+  draft: string;
+  setDraft: (text: string) => void;
+  sending: boolean;
+  sendFailed: boolean;
+}
 
 class ImageError extends Error {}
 
-/** Text and image messages of this call, oldest first, plus ways to send them. */
-export function useCallChat() {
-  const chat = useChat();
-  const room = useRoomContext();
-  const [images, setImages] = useState<ChatItem[]>([]);
+/** Trailing space and leading blank lines go; line breaks inside the message stay. */
+export const tidyMessage = (text: string) => text.replace(/^\s*\n|\s+$/g, '');
+
+/** Messages we keep ourselves. Picture URLs are let go as they age and when the call ends. */
+export function useHeldItems() {
+  const [items, setItems] = useState<ChatItem[]>([]);
   const urls = useRef(new Set<string>());
 
-  const addImage = (item: ChatItem) =>
-    setImages((list) => {
+  const add = useCallback((item: ChatItem) =>
+    setItems((list) => {
       const next = [...list, item];
       // Let go of the oldest pictures so a long call doesn't keep growing in memory.
       const withUrl = next.filter((i) => i.image?.url);
@@ -70,38 +87,14 @@ export function useCallChat() {
         old.image = { ...old.image!, url: null };
       }
       return next;
-    });
-  const updateImage = (id: string, patch: Partial<NonNullable<ChatItem['image']>>) =>
-    setImages((list) => list.map((i) => (i.id === id ? { ...i, image: { ...i.image!, ...patch } } : i)));
-
-  // Pictures from the others.
-  useEffect(() => {
-    const receive = async (reader: ByteStreamReader, identity: string) => {
-      const type = reader.info.mimeType;
-      if (!IMAGE_TYPES.includes(type)) return;
-      const chunks: Uint8Array[] = [];
-      let size = 0;
-      for await (const chunk of reader) {
-        size += chunk.byteLength;
-        if (size > MAX_RECEIVE_BYTES) return;
-        chunks.push(chunk);
-      }
-      const from = room.getParticipantByIdentity(identity) ?? null;
-      const url = URL.createObjectURL(new Blob(chunks as BlobPart[], { type }));
-      urls.current.add(url);
-      addImage({
-        id: reader.info.id,
-        identity,
-        from,
-        name: from?.name || identity,
-        isLocal: false,
-        timestamp: reader.info.timestamp || Date.now(),
-        image: { url, status: 'sent' },
-      });
-    };
-    room.registerByteStreamHandler(IMAGE_TOPIC, (reader, { identity }) => void receive(reader, identity).catch(() => {}));
-    return () => room.unregisterByteStreamHandler(IMAGE_TOPIC);
-  }, [room]);
+    }), []);
+  const updateImage = useCallback((id: string, patch: Partial<NonNullable<ChatItem['image']>>) =>
+    setItems((list) => list.map((i) => (i.id === id ? { ...i, image: { ...i.image!, ...patch } } : i))), []);
+  const urlFor = useCallback((blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    urls.current.add(url);
+    return url;
+  }, []);
 
   // The call is over: free the pictures.
   useEffect(() => {
@@ -111,6 +104,97 @@ export function useCallChat() {
       all.clear();
     };
   }, []);
+
+  return { items, add, updateImage, urlFor };
+}
+
+export type HeldItems = ReturnType<typeof useHeldItems>;
+
+/** A picture coming in from someone; null when it isn't one we accept. */
+export async function readPicture(reader: ByteStreamReader): Promise<Blob | null> {
+  const type = reader.info.mimeType;
+  if (!IMAGE_TYPES.includes(type)) return null;
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for await (const chunk of reader) {
+    size += chunk.byteLength;
+    if (size > MAX_RECEIVE_BYTES) return null;
+    chunks.push(chunk);
+  }
+  return new Blob(chunks as BlobPart[], { type });
+}
+
+/** Sends a picture and shows it right away with its progress. */
+export async function sendPicture(
+  room: Room,
+  held: HeldItems,
+  file: File,
+  target: { topic: string; destinationIdentities?: string[]; thread?: string },
+) {
+  let ready: File;
+  try {
+    ready = await prepareImage(file);
+  } catch (err) {
+    useStore.getState().setNotice(err instanceof ImageError ? err.message : translate('chat.imageFailed'));
+    return;
+  }
+  const local = room.localParticipant;
+  const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  held.add({
+    id,
+    identity: local.identity,
+    from: local,
+    name: local.name || local.identity,
+    isLocal: true,
+    timestamp: Date.now(),
+    image: { url: held.urlFor(ready), status: 'sending', progress: 0 },
+    thread: target.thread,
+  });
+  try {
+    await local.sendFile(ready, {
+      topic: target.topic,
+      destinationIdentities: target.destinationIdentities,
+      mimeType: ready.type,
+      onProgress: (p) => held.updateImage(id, { progress: p }),
+    });
+    held.updateImage(id, { status: 'sent' });
+  } catch {
+    held.updateImage(id, { status: 'failed' });
+    useStore.getState().setNotice(translate('chat.imageFailed'));
+  }
+}
+
+/** Text and image messages of this call, oldest first, plus ways to send them. */
+export function useCallChat(): ChatThread {
+  const chat = useChat();
+  const room = useRoomContext();
+  const held = useHeldItems();
+  // Keep the draft and send state for the call, even while the panel is closed.
+  const [draft, setDraft] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendFailed, setSendFailed] = useState(false);
+  const sendingRef = useRef(false);
+  const { add, urlFor } = held;
+
+  // Pictures from the others.
+  useEffect(() => {
+    const receive = async (reader: ByteStreamReader, identity: string) => {
+      const blob = await readPicture(reader);
+      if (!blob) return;
+      const from = room.getParticipantByIdentity(identity) ?? null;
+      add({
+        id: reader.info.id,
+        identity,
+        from,
+        name: from?.name || identity,
+        isLocal: false,
+        timestamp: reader.info.timestamp || Date.now(),
+        image: { url: urlFor(blob), status: 'sent' },
+      });
+    };
+    room.registerByteStreamHandler(IMAGE_TOPIC, (reader, { identity }) => void receive(reader, identity).catch(() => {}));
+    return () => room.unregisterByteStreamHandler(IMAGE_TOPIC);
+  }, [room, add, urlFor]);
 
   const items = useMemo(() => {
     const texts: ChatItem[] = chat.chatMessages.map((m) => ({
@@ -122,46 +206,29 @@ export function useCallChat() {
       timestamp: m.timestamp,
       text: m.message,
     }));
-    return [...texts, ...images].sort((a, b) => a.timestamp - b.timestamp);
-  }, [chat.chatMessages, images]);
+    return [...texts, ...held.items].sort((a, b) => a.timestamp - b.timestamp);
+  }, [chat.chatMessages, held.items]);
 
-  const sendText = (text: string) => chat.send(text);
-
-  const sendImage = async (file: File) => {
-    let ready: File;
+  const sendText = async (text: string) => {
+    const message = tidyMessage(text);
+    if (!message.trim() || sendingRef.current) return;
+    sendingRef.current = true;
+    setSending(true);
+    setSendFailed(false);
     try {
-      ready = await prepareImage(file);
-    } catch (err) {
-      useStore.getState().setNotice(err instanceof ImageError ? err.message : translate('chat.imageFailed'));
-      return;
-    }
-    const local = room.localParticipant;
-    const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const url = URL.createObjectURL(ready);
-    urls.current.add(url);
-    addImage({
-      id,
-      identity: local.identity,
-      from: local,
-      name: local.name || local.identity,
-      isLocal: true,
-      timestamp: Date.now(),
-      image: { url, status: 'sending', progress: 0 },
-    });
-    try {
-      await local.sendFile(ready, {
-        topic: IMAGE_TOPIC,
-        mimeType: ready.type,
-        onProgress: (p) => updateImage(id, { progress: p }),
-      });
-      updateImage(id, { status: 'sent' });
+      await chat.send(message);
+      setDraft((current) => current === text ? '' : current);
     } catch {
-      updateImage(id, { status: 'failed' });
-      useStore.getState().setNotice(translate('chat.imageFailed'));
+      setSendFailed(true);
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
     }
   };
 
-  return { items, sendText, sendImage };
+  const sendImage = (file: File) => sendPicture(room, held, file, { topic: IMAGE_TOPIC });
+
+  return { items, sendText, sendImage, draft, setDraft, sending, sendFailed };
 }
 
 /** Checks the type and size; big photos are scaled down (GIFs are sent as they are, to keep the animation). */
@@ -221,20 +288,30 @@ function linkify(text: string): ReactNode[] {
   );
 }
 
-/** Messages in a row from the same person (within two minutes) share one avatar and name. */
-function groupsOf(items: ChatItem[]) {
-  const groups: { key: string; first: ChatItem; items: ChatItem[] }[] = [];
-  for (const item of items) {
-    const g = groups[groups.length - 1];
-    const prev = g?.items[g.items.length - 1];
-    if (g && prev && prev.identity === item.identity && item.timestamp - prev.timestamp < 120_000) g.items.push(item);
-    else groups.push({ key: item.id, first: item, items: [item] });
-  }
-  return groups;
+interface PanelProps {
+  chat: ChatThread;
+  title: string;
+  collapsed: boolean;
+  unread: number;
+  onToggle: () => void;
+  /** a private chat: shows the lock and the close button */
+  onClose?: () => void;
+  /** the private chat's color; the group chat keeps the default */
+  accent?: string;
+  /** why nothing can be sent right now (the other person left) */
+  blocked?: string | null;
+  emptyText?: string;
+  /** the group chat: fades when nothing is going on, Enter opens it */
+  quietWhenIdle?: boolean;
+  /** clicking a name in the group chat opens a private chat */
+  onName?: (item: ChatItem) => void;
+  /** change this to move the cursor into the box */
+  focusRequest?: number;
 }
 
-export function ChatPanel({ chat, onClose }: { chat: CallChat; onClose: () => void }) {
-  const [text, setText] = useState('');
+export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, accent, blocked, emptyText, quietWhenIdle, onName, focusRequest }: PanelProps) {
+  const text = chat.draft;
+  const setText = chat.setDraft;
   const [dragging, setDragging] = useState(false);
   const [viewing, setViewing] = useState<string | null>(null);
   const t = useT();
@@ -243,13 +320,22 @@ export function ChatPanel({ chat, onClose }: { chat: CallChat; onClose: () => vo
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
-  const groups = useMemo(() => groupsOf(chat.items), [chat.items]);
 
-  // Stay at the bottom as messages (and pictures, once loaded) come in.
+  const pinned = useRef(true);
+  const [awayFromLatest, setAwayFromLatest] = useState(false);
+  // Follow new content only while already at the bottom. Leave readers in place.
   const scrollDown = () => {
     if (list.current) list.current.scrollTop = list.current.scrollHeight;
   };
-  useLayoutEffect(scrollDown, [chat.items.length]);
+  const followLatest = () => {
+    if (pinned.current) scrollDown();
+  };
+  useLayoutEffect(followLatest, [chat.items, collapsed]);
+  useEffect(() => {
+    const observer = new ResizeObserver(followLatest);
+    if (list.current) observer.observe(list.current);
+    return () => observer.disconnect();
+  }, []);
 
   // The box grows with the text, up to six lines.
   useLayoutEffect(() => {
@@ -257,24 +343,74 @@ export function ChatPanel({ chat, onClose }: { chat: CallChat; onClose: () => vo
     if (!el) return;
     el.style.height = 'auto';
     el.style.height = `${Math.min(el.scrollHeight, 6 * 20 + 18)}px`;
-  }, [text]);
+  }, [text, collapsed]);
+
+  // Going quiet: the frame and the box fade out of the way of the game, new lines still show for
+  // a moment. Anything in progress keeps it awake. Timed from when a line got here, not from its
+  // timestamp, since that comes from the sender's clock.
+  const [hovered, setHovered] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [quiet, setQuiet] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const firstSeen = useRef(new Map<string, number>());
+  const quietNow = useRef(false);
+  for (const m of chat.items) if (!firstSeen.current.has(m.id)) firstSeen.current.set(m.id, Date.now());
+  const awake = !quietWhenIdle || collapsed || hovered || typing || dragging || !!viewing || awayFromLatest || !!text.trim() || chat.sending || chat.sendFailed;
+  useEffect(() => {
+    if (awake) {
+      quietNow.current = false;
+      setQuiet(false);
+      return;
+    }
+    const delay = quietNow.current ? 0 : QUIET_AFTER_MS;
+    quietNow.current = false;
+    const timer = setTimeout(() => {
+      setNow(Date.now());
+      setQuiet(true);
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [awake]);
+  useEffect(() => {
+    if (!quiet) return;
+    const left = [...firstSeen.current.values()].map((at) => at + LINE_VISIBLE_MS - Date.now()).filter((ms) => ms > 0);
+    if (!left.length) return;
+    const timer = setTimeout(() => setNow(Date.now()), Math.min(...left) + 20);
+    return () => clearTimeout(timer);
+  }, [quiet, now, chat.items]);
+
+  const [focusAsked, setFocusAsked] = useState(0);
+  useEffect(() => {
+    if (focusAsked || focusRequest) input.current?.focus();
+  }, [focusAsked, focusRequest]);
+  const wake = () => {
+    if (collapsed) onToggle();
+    setFocusAsked((n) => n + 1);
+  };
+
+  // Enter opens the group chat, unless something else on screen wants that key.
+  useEffect(() => {
+    if (!quietWhenIdle) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat || e.isComposing || e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+      if (document.activeElement?.closest('input, textarea, select, button, a, [contenteditable]')) return;
+      if (document.querySelector('.modal-backdrop, .lightbox, .volume-menu, dialog[open], .control-bar')) return;
+      e.preventDefault();
+      wake();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const sendFiles = (files: Iterable<File>) => {
     const pics = [...files].filter((f) => f.type.startsWith('image/')).slice(0, MAX_FILES_AT_ONCE);
+    if (blocked) return pics.length > 0;
     for (const f of pics) void chat.sendImage(f);
     return pics.length > 0;
   };
 
   const send = async (e?: FormEvent) => {
     e?.preventDefault();
-    const msg = text.replace(/^\s*\n|\s+$/g, '');
-    if (!msg.trim()) return;
-    setText('');
-    try {
-      await chat.sendText(msg);
-    } catch {
-      useStore.getState().setNotice(t('chat.notSent'));
-    }
+    if (!blocked) await chat.sendText(text);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -282,6 +418,9 @@ export function ChatPanel({ chat, onClose }: { chat: CallChat; onClose: () => vo
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       void send();
+    } else if (e.key === 'Escape') {
+      quietNow.current = true;
+      e.currentTarget.blur();
     }
   };
 
@@ -305,46 +444,87 @@ export function ChatPanel({ chat, onClose }: { chat: CallChat; onClose: () => vo
     if (!sendFiles(e.dataTransfer.files)) useStore.getState().setNotice(t('chat.imageType'));
   };
 
+  const shownQuiet = quiet && !collapsed;
+  const classes = ['chat-panel', 'chat-box', 'chat-widget'];
+  if (collapsed) classes.push('collapsed');
+  if (dragging) classes.push('dragging');
+  if (shownQuiet) classes.push('quiet');
+  if (onClose) classes.push('private');
+
   return (
-    <aside className={`chat-panel chat-box${dragging ? ' dragging' : ''}`} onDragOver={onDragOver} onDragLeave={onDragLeave} onDrop={onDrop}>
+    <aside
+      aria-label={title}
+      className={classes.join(' ')}
+      style={accent ? ({ '--chat-accent': accent } as CSSProperties) : undefined}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+    >
       <header className="chat-top">
-        <div className="chat-title">
-          <strong>{t('chat.title')}</strong>
-          <span>{t('chat.subtitle')}</span>
-        </div>
-        <div className="spacer" />
-        <IconButton label={t('chat.close')} onClick={onClose}>
-          <X size={16} />
-        </IconButton>
+        <button type="button" className="chat-toggle" aria-expanded={!collapsed} onClick={onToggle}
+          aria-label={t(collapsed ? 'chat.expand' : 'chat.collapse')}>
+          {onClose && <Lock size={13} />}
+          <strong>{title}</strong>
+          {collapsed && unread > 0 && <span className="chat-unread">{unread > 99 ? '99+' : unread}</span>}
+          <span className="spacer" />
+          {collapsed ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        {onClose && (
+          <button type="button" className="chat-close" aria-label={t('private.close')} title={t('private.close')} onClick={onClose}>
+            <X size={14} />
+          </button>
+        )}
       </header>
 
-      <div className="chat-list" ref={list}>
-        {groups.length === 0 && <p className="chat-empty">{t('chat.empty')}</p>}
-        {groups.map((g) => (
-          <div
-            key={g.key}
-            className={`chat-group${g.first.isLocal ? ' mine' : ''}`}
-            style={{ '--c': colorFor(g.first.identity || g.first.name) } as CSSProperties}
-          >
-            <ChatAvatar item={g.first} />
-            <div className="chat-group-body">
-              <div className="chat-head">
-                <strong>{g.first.isLocal ? t('common.you') : g.first.name || t('common.someone')}</strong>
-                <span className="chat-time">{timeFmt.format(g.first.timestamp)}</span>
-              </div>
-              {g.items.map((m) =>
-                m.image ? (
-                  <ChatImage key={m.id} image={m.image} onOpen={setViewing} onLoad={scrollDown} />
-                ) : (
-                  <div key={m.id} className="chat-bubble">
-                    {linkify(m.text ?? '')}
-                  </div>
-                ),
+      <div className="chat-content" hidden={collapsed}>
+
+      <div className="chat-list" ref={list} onScroll={() => {
+        const el = list.current;
+        if (!el) return;
+        pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight <= 48;
+        setAwayFromLatest(!pinned.current);
+      }}>
+        {chat.items.length === 0 && <p className="chat-empty">{emptyText ?? t('chat.empty')}</p>}
+        {chat.items.map((m) => {
+          const stale = shownQuiet && now - (firstSeen.current.get(m.id) ?? 0) >= LINE_VISIBLE_MS;
+          const name = m.isLocal ? t('common.you') : m.name || t('common.someone');
+          return (
+            <div
+              key={m.id}
+              className={`chat-line${stale ? ' stale' : ''}`}
+              style={{ '--c': colorFor(m.identity || m.name) } as CSSProperties}
+            >
+              <time className="chat-time">{timeFmt.format(m.timestamp)}</time>{' '}
+              {onName && !m.isLocal && m.identity ? (
+                <button type="button" className="chat-name" title={t('private.open')} onClick={() => onName(m)}>{name}</button>
+              ) : (
+                <strong className="chat-name">{name}</strong>
+              )}
+              <span className="chat-name-end">: </span>
+              {m.image ? (
+                <ChatImage image={m.image} onOpen={setViewing} onLoad={followLatest} />
+              ) : (
+                <span className="chat-text">{linkify(m.text ?? '')}</span>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
+
+      {awayFromLatest && <button type="button" className="btn chat-latest" onClick={() => {
+        pinned.current = true;
+        scrollDown();
+        setAwayFromLatest(false);
+      }}>{t('chat.latest')}</button>}
+
+      {chat.sendFailed && !blocked && <div className="chat-send-error" role="alert">
+        <span>{t('chat.notSent')}</span>
+        <button type="button" className="btn small-btn" disabled={!text.trim() || chat.sending} onClick={() => void chat.sendText(text)}>{t('chat.retry')}</button>
+      </div>}
+
+      {blocked && <div className="chat-send-error" role="status"><span>{blocked}</span></div>}
 
       {dragging && <div className="chat-drop">{t('chat.dropHere')}</div>}
 
@@ -360,7 +540,7 @@ export function ChatPanel({ chat, onClose }: { chat: CallChat; onClose: () => vo
             e.target.value = '';
           }}
         />
-        <IconButton label={t('chat.attach')} onClick={() => fileInput.current?.click()}>
+        <IconButton label={t('chat.attach')} disabled={!!blocked} onClick={() => fileInput.current?.click()}>
           <Picture size={17} />
         </IconButton>
         <textarea
@@ -368,36 +548,39 @@ export function ChatPanel({ chat, onClose }: { chat: CallChat; onClose: () => vo
           className="field"
           rows={1}
           value={text}
+          readOnly={chat.sending}
+          disabled={!!blocked}
+          aria-label={t('chat.placeholder')}
+          aria-busy={chat.sending}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKeyDown}
           onPaste={onPaste}
+          onFocus={() => setTyping(true)}
+          onBlur={() => setTyping(false)}
           placeholder={t('chat.placeholder')}
-          autoFocus
         />
-        <button type="submit" className="chat-send" aria-label={t('chat.send')} title={t('chat.send')} disabled={!text.trim()}>
+        <button type="submit" className="chat-send" aria-label={t(chat.sending ? 'chat.sending' : 'chat.send')} title={t(chat.sending ? 'chat.sending' : 'chat.send')} disabled={!text.trim() || chat.sending || !!blocked}>
           <Send size={16} />
         </button>
       </form>
+
+      {shownQuiet && (
+        <button type="button" className="chat-wake" aria-label={t('chat.expand')} onClick={wake}>
+          <Chat size={14} />
+          <kbd>Enter</kbd>
+        </button>
+      )}
+
+      </div>
 
       {viewing && <Lightbox url={viewing} onClose={() => setViewing(null)} />}
     </aside>
   );
 }
 
-function ChatAvatar({ item }: { item: ChatItem }) {
-  const myAvatar = useStore((s) => s.avatar);
-  const pick = item.isLocal ? myAvatar : item.from ? avatarOf(item.from) : null;
-  return (
-    <div className="chat-avatar" aria-hidden>
-      <span className="avatar-initials">{initials(item.name || '?')}</span>
-      {pick && <AvatarPhoto key={pick.src} pick={pick} />}
-    </div>
-  );
-}
-
 function ChatImage({ image, onOpen, onLoad }: { image: NonNullable<ChatItem['image']>; onOpen: (url: string) => void; onLoad: () => void }) {
   const t = useT();
-  if (!image.url) return <div className="chat-bubble muted small">{t('chat.imageGone')}</div>;
+  if (!image.url) return <span className="chat-gone">{t('chat.imageGone')}</span>;
   const url = image.url;
   return (
     <button type="button" className={`chat-image ${image.status}`} onClick={() => onOpen(url)} title={t('chat.openImage')}>
@@ -419,12 +602,13 @@ function Lightbox({ url, onClose }: { url: string; onClose: () => void }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
-  return (
+  return createPortal(
     <div className="lightbox" role="dialog" aria-label={t('chat.openImage')} onClick={onClose}>
       <img src={url} alt="" onClick={(e) => e.stopPropagation()} />
       <button type="button" className="icon-btn lightbox-close" aria-label={t('common.close')} onClick={onClose}>
         <X size={20} />
       </button>
-    </div>
+    </div>,
+    document.body,
   );
 }

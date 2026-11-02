@@ -8,6 +8,7 @@ import { icon, RIOT_ID } from '../lol';
 import { riotOf } from '../presence';
 import { useStore } from '../store';
 import { X } from './Icons';
+import { ChampionRoulette } from './ChampionRoulette';
 
 type Champ = { id: string; key: number; name: string };
 
@@ -15,15 +16,16 @@ type Champ = { id: string; key: number; name: string };
  * Before the game: pick a champion, see its build and matchups at a glance.
  * Icons in order, no explanations.
  */
-export function LolPanel({ meta, onClose }: { meta: LolMeta; onClose: () => void }) {
+export function LolPanel({ meta, onClose, initialPick }: { meta: LolMeta; onClose: () => void; initialPick?: { id: string; lane?: LolRole } | null }) {
   const t = useT();
   const lang = useStore((s) => s.lang);
   const rank = useStore((s) => s.lolRank);
-  const [champion, setChampion] = useState<string | null>(() => getRecentChampions()[0] ?? null);
-  const [role, setRole] = useState<LolRole | null>(null);
+  const [champion, setChampion] = useState<string | null>(() => initialPick?.id ?? getRecentChampions()[0] ?? null);
+  const [role, setRole] = useState<LolRole | null>(initialPick?.lane ?? null);
   const [build, setBuild] = useState<LolBuild | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rouletteOpen, setRouletteOpen] = useState(false);
   const version = meta.version!;
 
   useEffect(() => {
@@ -49,11 +51,18 @@ export function LolPanel({ meta, onClose }: { meta: LolMeta; onClose: () => void
     };
   }, [champion, role, lang, rank]);
 
-  const choose = (id: string) => {
-    setRole(null);
+  const choose = (id: string, lane?: LolRole) => {
+    setRole(lane ?? null);
     setChampion(id);
     saveRecentChampions([id, ...getRecentChampions().filter((c) => c !== id)]);
   };
+
+  useEffect(() => {
+    if (!initialPick) return;
+    setChampion(initialPick.id);
+    setRole(initialPick.lane ?? null);
+    saveRecentChampions([initialPick.id, ...getRecentChampions().filter((c) => c !== initialPick.id)]);
+  }, [initialPick]);
 
   return (
     <aside className="chat-panel lol-panel">
@@ -66,6 +75,11 @@ export function LolPanel({ meta, onClose }: { meta: LolMeta; onClose: () => void
       </div>
 
       <div className="lol-scroll">
+        <button type="button" className="roulette-launch" onClick={() => setRouletteOpen(true)}>
+          <span aria-hidden="true">✦</span>
+          <span><strong>{t('roulette.title')}</strong><small>{t('roulette.launch')}</small></span>
+          <span aria-hidden="true">↗</span>
+        </button>
         <QuickPicks meta={meta} current={champion} onPick={choose} />
 
         {build ? (
@@ -77,6 +91,7 @@ export function LolPanel({ meta, onClose }: { meta: LolMeta; onClose: () => void
       </div>
 
       <RiotAccountForm />
+      {rouletteOpen && <ChampionRoulette meta={meta} onPick={choose} onClose={() => setRouletteOpen(false)} />}
     </aside>
   );
 }

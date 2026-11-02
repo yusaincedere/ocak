@@ -19,6 +19,10 @@ services:
       LIVEKIT_PUBLIC_URL: ws://localhost:7880
       LIVEKIT_API_KEY: devkey
       LIVEKIT_API_SECRET: secret
+      # Use the same optional League configuration as native local development.
+      RIOT_API_KEY: ${RIOT_API_KEY:-}
+      LOL_PLATFORMS: ${LOL_PLATFORMS:-tr1,euw1,kr,na1}
+      LOL_COLLECT: ${LOL_COLLECT:-on}
     volumes:
       - ocak-local-data:/data
     depends_on:

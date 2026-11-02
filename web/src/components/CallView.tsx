@@ -5,6 +5,8 @@ import {
   useParticipants,
   useRoomContext,
 } from '@livekit/components-react';
+import type { LolRole } from '../../../server/src/protocol';
+import { ChampionRoulette } from './ChampionRoulette';
 import { ConnectionState, RoomEvent } from 'livekit-client';
 import { useEffect, useRef, useState } from 'react';
 import { mediaErrorKey } from '../media-errors';
@@ -13,17 +15,18 @@ import { desktop } from '../desktop-bridge';
 import { useLolMeta } from '../lol';
 import { translate, useT } from '../i18n';
 import { roomLink } from '../links';
-import { assignColors, resetColors, setPresence } from '../presence';
+import { assignColors, deviceOf, resetColors, setPresence } from '../presence';
 import { sounds } from '../sounds';
 import { useStore, type Call } from '../store';
 import { CallAudio, NoiseReductionSync } from './CallAudio';
 import { ChatPanel, useCallChat, useChatSound } from './Chat';
+import { usePrivateChats } from './PrivateChat';
 import { DesktopIntegration, usePushToTalk } from './DesktopIntegration';
 import { DesktopSettings } from './DesktopSettings';
 import { LolPanel } from './LolPanel';
 import { PostGameCard, usePostGame } from './PostGame';
 import { CopyButton, NameChip } from './Home';
-import { Chat, Gear, LolLogo, UserPlus } from './Icons';
+import { Dice, Gear, LolLogo, UserPlus } from './Icons';
 import { VolumeMenu } from './VolumeMenu';
 import { SharerControl, ViewerControl } from './RemoteControl';
 import { ScreenPicker } from './ScreenPicker';
@@ -58,7 +61,6 @@ export function CallView({ call }: { call: Call }) {
     >
       <CallAudio />
       <NoiseReductionSync />
-      <VolumeMenu />
       <DesktopIntegration roomId={call.roomId} />
       <CallSounds />
       <AvatarSync />
@@ -72,9 +74,11 @@ function CallLayout({ call }: { call: Call }) {
   const participants = useParticipants();
   const connection = useConnectionState();
   const { localParticipant } = useLocalParticipant();
-  // One side panel at a time: chat or the LoL helper.
-  const [panel, setPanel] = useState<'chat' | 'lol' | null>(null);
-  const chatOpen = panel === 'chat';
+  const [panel, setPanel] = useState<'lol' | null>(null);
+  const [chatCollapsed, setChatCollapsed] = useState(false);
+  const [rouletteOpen, setRouletteOpen] = useState(false);
+  const [roulettePick, setRoulettePick] = useState<{ id: string; lane?: LolRole } | null>(null);
+  const chatOpen = !chatCollapsed;
   const lolMeta = useLolMeta();
   const postGame = usePostGame();
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -82,6 +86,7 @@ function CallLayout({ call }: { call: Call }) {
   assignColors(participants.map((p) => p.identity));
   useEffect(() => resetColors, []);
   const chat = useCallChat();
+  const privateChats = usePrivateChats(participants);
   const [seen, setSeen] = useState(0);
   const t = useT();
 
@@ -123,8 +128,33 @@ function CallLayout({ call }: { call: Call }) {
           <ViewerControl />
           {desktop && <SharerControl />}
         </div>
-        {chatOpen && <ChatPanel chat={chat} onClose={() => setPanel(null)} />}
-        {panel === 'lol' && lolMeta?.enabled && <LolPanel meta={lolMeta} onClose={() => setPanel(null)} />}
+        <div className="chat-stack">
+          {privateChats.list.map((p) => (
+            <ChatPanel
+              key={p.device}
+              chat={p.chat}
+              title={p.name}
+              accent={p.color}
+              collapsed={p.collapsed}
+              unread={p.unread}
+              onToggle={() => privateChats.toggle(p.device)}
+              onClose={() => privateChats.close(p.device)}
+              blocked={p.online ? null : t('private.left', { name: p.name })}
+              emptyText={t('private.empty')}
+              focusRequest={p.focusRequest}
+            />
+          ))}
+          <ChatPanel
+            chat={chat}
+            title={t('chat.title')}
+            collapsed={chatCollapsed}
+            unread={unread}
+            onToggle={() => setChatCollapsed((value) => !value)}
+            onName={(m) => privateChats.open(deviceOf(m.identity), m.name)}
+            quietWhenIdle
+          />
+        </div>
+        {panel === 'lol' && lolMeta?.enabled && <LolPanel meta={lolMeta} initialPick={roulettePick} onClose={() => setPanel(null)} />}
       </div>
 
       <footer className="controls">
@@ -132,9 +162,8 @@ function CallLayout({ call }: { call: Call }) {
         <DeafenButton />
         <CameraButton />
         <ScreenShareButton />
-        <IconButton label={chatOpen ? t('controls.hideChat') : t('controls.chat')} active={chatOpen} onClick={() => setPanel((v) => (v === 'chat' ? null : 'chat'))} className="chat-btn">
-          <Chat />
-          {unread > 0 && <span className="badge">{unread > 9 ? '9+' : unread}</span>}
+        <IconButton label={t(lolMeta?.enabled ? 'roulette.title' : 'roulette.unavailable')} active={rouletteOpen} disabled={!lolMeta?.enabled} onClick={() => setRouletteOpen(true)} className="roulette-btn">
+          <Dice />
         </IconButton>
         {lolMeta?.enabled && (
           <IconButton label={t('lol.title')} active={panel === 'lol'} onClick={() => setPanel((v) => (v === 'lol' ? null : 'lol'))} className="lol-btn">
@@ -144,6 +173,11 @@ function CallLayout({ call }: { call: Call }) {
         <LeaveButton />
       </footer>
 
+      <VolumeMenu onMessage={privateChats.open} />
+      {rouletteOpen && lolMeta?.enabled && <ChampionRoulette meta={lolMeta} onClose={() => setRouletteOpen(false)} onPick={(id, lane) => {
+        setRoulettePick({ id, lane });
+        setPanel('lol');
+      }} />}
       {settingsOpen && <DesktopSettings onClose={() => setSettingsOpen(false)} />}
       {postGame.shown && <PostGameCard match={postGame.shown} friends={postGame.friends} night={postGame.night} onClose={postGame.close} />}
     </>

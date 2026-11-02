@@ -4,10 +4,10 @@ import { create } from 'zustand';
 import { useT } from '../i18n';
 import { deviceOf } from '../presence';
 import { useStore } from '../store';
-import { Volume, VolumeOff } from './Icons';
+import { Chat, Volume, VolumeOff } from './Icons';
 
-// Right-click (or long-press) someone in the call to set how loud they are *for you*.
-// Remembered per friend (by device), so it sticks across calls.
+// Right-click (or long-press) someone in the call to set how loud they are *for you*, or to write
+// to them in private. Volume is remembered per friend (by device), so it sticks across calls.
 
 interface Target {
   device: string;
@@ -59,8 +59,8 @@ export function usePersonMenu(participant: Participant | undefined) {
   };
 }
 
-/** The per-friend volume popup; rendered once inside the call. */
-export function VolumeMenu() {
+/** The per-friend popup; rendered once inside the call. */
+export function VolumeMenu({ onMessage }: { onMessage: (device: string, name: string) => void }) {
   const t = useT();
   const target = useMenu((s) => s.target);
   const volume = useStore((s) => (target ? (s.volumes[target.device] ?? 1) : 1));
@@ -143,6 +143,17 @@ export function VolumeMenu() {
           {t('volume.reset')}
         </button>
       )}
+      <button
+        type="button"
+        className="btn subtle small-btn volume-message"
+        onClick={() => {
+          onMessage(target.device, target.name);
+          useMenu.getState().close();
+        }}
+      >
+        <Chat size={14} />
+        {t('private.open')}
+      </button>
     </div>
   );
 }

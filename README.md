@@ -12,8 +12,9 @@ Self-hosted voice, video and screen sharing with no accounts. **Start a call, sh
 - **Rooms with a link.** Starting a call creates a room with an ID and password. Share the invite link (`/r/<id>#<password>`) for one-click joining, or share the ID and password.
 - **Reusable rooms.** Recent rooms appear on the home screen. Unused rooms expire after a configurable number of days.
 - **Calls:** voice, camera, screen sharing with audio, mute/deafen, device selection, and join/leave sounds.
-- **In-call chat** that exists only for the duration of the call. Nothing is stored on the server.
+- **In-call chat** that exists only for the duration of the call, plus **one-to-one private chats** inside the call. Nothing is stored on the server.
 - **Desktop app** for Windows and macOS: push-to-talk, a global mute shortcut, a floating mini overlay, tray controls, a screen/window picker and **remote control** of a shared screen.
+- **Champion roulette** in the League panel: a casino-style champion reel, optional lane filter, optional sound, and a shortcut to the selected champion's build. Any lane uses the whole roster; lane pools work immediately using bundled client positions, extended by collected match data.
 - **Optional server code** to restrict who can *start* calls. Joining a room never needs it.
 
 Media is routed through [LiveKit](https://livekit.io), an open-source WebRTC SFU. Each participant uploads one stream and the server forwards it, which keeps group calls smooth and keeps participants' IP addresses private from each other.

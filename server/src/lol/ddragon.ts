@@ -175,17 +175,26 @@ export const setStaticData = (d: StaticData | null) => {
 
 /** Load now and then every few hours; keeps the old data if a refresh fails. */
 export function startStaticDataRefresh(log: (msg: string, err?: unknown) => void) {
+  let refreshing = false;
+  let nextRefresh = 0;
   const refresh = async () => {
+    if (refreshing || Date.now() < nextRefresh) return;
+    refreshing = true;
     try {
       const next = await loadStaticData();
       if (next.version !== current?.version) log(`Data Dragon ${next.version} loaded`);
       current = next;
+      nextRefresh = Date.now() + 6 * 60 * 60 * 1000;
     } catch (err) {
       log('Could not load Data Dragon', err);
+      // A brief startup outage must not hide League helpers for six hours.
+      nextRefresh = Date.now() + 15_000;
+    } finally {
+      refreshing = false;
     }
   };
   void refresh();
-  return setInterval(refresh, 6 * 60 * 60 * 1000).unref();
+  return setInterval(refresh, 15_000).unref();
 }
 
 // ---------- per-champion details (ability names and icons), loaded on demand ----------

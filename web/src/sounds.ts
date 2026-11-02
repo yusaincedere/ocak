@@ -26,6 +26,8 @@ function tone(freqs: number[], step = 0.09, volume = 0.08, type: OscillatorType 
 }
 
 export const sounds = {
+  rouletteTick: () => tone([720], 0.018, 0.025, 'triangle'),
+  rouletteWin: () => tone([523, 659, 784, 1047], 0.11, 0.07, 'triangle'),
   join: () => tone([523, 784]), // rising
   leave: () => tone([784, 523]), // falling
   mute: () => tone([392], 0.06, 0.05),

@@ -14,19 +14,30 @@ export const icon = {
   splash: (id: string) => `${DD}/img/champion/centered/${id}_0.jpg`,
 };
 
-/** Loads /api/lol/meta once per language (enabled: false hides every LoL feature). */
+/** Retry while champion data is loading; a missing server key stays disabled. */
 export function useLolMeta() {
   const lang = useStore((s) => s.lang);
   const meta = useStore((s) => s.lolMeta);
   const rank = useStore((s) => s.lolRank);
   useEffect(() => {
     let cancelled = false;
-    api
-      .lolMeta(lang, rank)
-      .then((m) => !cancelled && useStore.getState().setLolMeta(m))
-      .catch(() => !cancelled && useStore.getState().setLolMeta({ enabled: false }));
+    let retry: ReturnType<typeof setTimeout>;
+    const load = async () => {
+      try {
+        const next = await api.lolMeta(lang, rank);
+        if (cancelled) return;
+        useStore.getState().setLolMeta(next);
+        if (next.loading) retry = setTimeout(load, 5000);
+      } catch {
+        if (cancelled) return;
+        // A transient API/network failure should not permanently remove the button.
+        retry = setTimeout(load, 5000);
+      }
+    };
+    void load();
     return () => {
       cancelled = true;
+      clearTimeout(retry);
     };
   }, [lang, rank]);
   return meta;

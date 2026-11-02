@@ -49,12 +49,14 @@ export const tiersFrom = (rank: LolTier): LolTier[] => LOL_TIERS.slice(LOL_TIERS
 
 export interface LolMeta {
   enabled: boolean;
+  /** Configured, but static champion data is still loading; clients should retry. */
+  loading?: boolean;
   /** Data Dragon version, for icon URLs */
   version?: string;
   patch?: string;
   /** games collected for the newest patch with data */
   games?: number;
-  champions?: { id: string; key: number; name: string }[];
+  champions?: { id: string; key: number; name: string; roles?: LolRole[] }[];
 }
 
 export interface LolNamed {
