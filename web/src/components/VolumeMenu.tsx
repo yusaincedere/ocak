@@ -1,5 +1,5 @@
 import type { Participant } from 'livekit-client';
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import { create } from 'zustand';
 import { useT } from '../i18n';
 import { deviceOf } from '../presence';
@@ -39,6 +39,15 @@ export function usePersonMenu(participant: Participant | undefined) {
 
   return {
     title: t('volume.hint'),
+    role: 'button' as const,
+    tabIndex: 0,
+    onClick: (e: MouseEvent) => open(e.clientX, e.clientY),
+    onKeyDown: (e: ReactKeyboardEvent) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      e.preventDefault();
+      const bounds = e.currentTarget.getBoundingClientRect();
+      open(bounds.left + bounds.width / 2, bounds.bottom);
+    },
     onContextMenu: (e: MouseEvent) => {
       e.preventDefault();
       open(e.clientX, e.clientY);

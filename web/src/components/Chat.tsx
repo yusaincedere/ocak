@@ -25,7 +25,8 @@ import { colorFor } from '../presence';
 import { sounds } from '../sounds';
 import { useStore } from '../store';
 import { IconButton } from './VoiceControls';
-import { Chat, ChevronDown, ChevronUp, Lock, Picture, Send, X } from './Icons';
+import { EmojiTray } from './EmojiTray';
+import { Chat, ChevronDown, ChevronUp, Lock, Picture, Send, Smile, X } from './Icons';
 
 export const IMAGE_TOPIC = 'ocak-image';
 /** Only plain image formats (no SVG: it can carry scripts). */
@@ -320,6 +321,7 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
   const list = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const panel = useRef<HTMLElement>(null);
 
   const pinned = useRef(true);
   const [awayFromLatest, setAwayFromLatest] = useState(false);
@@ -345,6 +347,36 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
     el.style.height = `${Math.min(el.scrollHeight, 6 * 20 + 18)}px`;
   }, [text, collapsed]);
 
+  // Emojis go in where the cursor is. Touch screens keep the keyboard down while picking.
+  const [picking, setPicking] = useState(false);
+  const caret = useRef<number | null>(null);
+  const addEmoji = (emoji: string) => {
+    if (chat.sending) return;
+    const start = input.current?.selectionStart ?? text.length;
+    const end = input.current?.selectionEnd ?? text.length;
+    caret.current = start + emoji.length;
+    setText(text.slice(0, start) + emoji + text.slice(end));
+    useStore.getState().addRecentEmoji(emoji);
+  };
+  useLayoutEffect(() => {
+    if (caret.current === null) return;
+    input.current?.setSelectionRange(caret.current, caret.current);
+    caret.current = null;
+    if (!window.matchMedia('(pointer: coarse)').matches) input.current?.focus();
+  }, [text]);
+  const closeEmoji = () => {
+    setPicking(false);
+    input.current?.focus();
+  };
+  useEffect(() => {
+    if (!picking) return;
+    const onDown = (e: PointerEvent) => {
+      if (!panel.current?.contains(e.target as Node)) setPicking(false);
+    };
+    window.addEventListener('pointerdown', onDown);
+    return () => window.removeEventListener('pointerdown', onDown);
+  }, [picking]);
+
   // Going quiet: the frame and the box fade out of the way of the game, new lines still show for
   // a moment. Anything in progress keeps it awake. Timed from when a line got here, not from its
   // timestamp, since that comes from the sender's clock.
@@ -355,7 +387,7 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
   const firstSeen = useRef(new Map<string, number>());
   const quietNow = useRef(false);
   for (const m of chat.items) if (!firstSeen.current.has(m.id)) firstSeen.current.set(m.id, Date.now());
-  const awake = !quietWhenIdle || collapsed || hovered || typing || dragging || !!viewing || awayFromLatest || !!text.trim() || chat.sending || chat.sendFailed;
+  const awake = !quietWhenIdle || collapsed || hovered || typing || picking || dragging || !!viewing || awayFromLatest || !!text.trim() || chat.sending || chat.sendFailed;
   useEffect(() => {
     if (awake) {
       quietNow.current = false;
@@ -410,6 +442,7 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
 
   const send = async (e?: FormEvent) => {
     e?.preventDefault();
+    setPicking(false);
     if (!blocked) await chat.sendText(text);
   };
 
@@ -419,6 +452,7 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
       e.preventDefault();
       void send();
     } else if (e.key === 'Escape') {
+      if (picking) return setPicking(false);
       quietNow.current = true;
       e.currentTarget.blur();
     }
@@ -453,6 +487,7 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
 
   return (
     <aside
+      ref={panel}
       aria-label={title}
       className={classes.join(' ')}
       style={accent ? ({ '--chat-accent': accent } as CSSProperties) : undefined}
@@ -480,6 +515,7 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
 
       <div className="chat-content" hidden={collapsed}>
 
+      <div className="chat-log">
       <div className="chat-list" ref={list} onScroll={() => {
         const el = list.current;
         if (!el) return;
@@ -511,6 +547,8 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
             </div>
           );
         })}
+      </div>
+      {picking && !collapsed && !blocked && <EmojiTray onPick={addEmoji} onClose={closeEmoji} />}
       </div>
 
       {awayFromLatest && <button type="button" className="btn chat-latest" onClick={() => {
@@ -559,6 +597,9 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
           onBlur={() => setTyping(false)}
           placeholder={t('chat.placeholder')}
         />
+        <IconButton label={t('chat.emoji')} active={picking} disabled={!!blocked} onClick={() => setPicking((open) => !open)}>
+          <Smile size={17} />
+        </IconButton>
         <button type="submit" className="chat-send" aria-label={t(chat.sending ? 'chat.sending' : 'chat.send')} title={t(chat.sending ? 'chat.sending' : 'chat.send')} disabled={!text.trim() || chat.sending || !!blocked}>
           <Send size={16} />
         </button>

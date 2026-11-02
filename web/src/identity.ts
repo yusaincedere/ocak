@@ -15,6 +15,7 @@ const KEY = {
   volumes: 'ocak.volumes',
   noiseReduction: 'ocak.noiseReduction',
   chatSound: 'ocak.chatSound',
+  recentEmoji: 'ocak.recentEmoji',
   riot: 'ocak.riot',
   lolRecent: 'ocak.lolRecent',
   lolRank: 'ocak.lolRank',
@@ -87,6 +88,15 @@ export const getNoiseReduction = () => read(KEY.noiseReduction) !== 'off';
 export const saveNoiseReduction = (on: boolean) => write(KEY.noiseReduction, on ? 'on' : 'off');
 export const getChatSound = () => read(KEY.chatSound) !== 'off';
 export const saveChatSound = (on: boolean) => write(KEY.chatSound, on ? 'on' : 'off');
+export function getRecentEmoji(): string[] {
+  try {
+    const list: unknown = JSON.parse(read(KEY.recentEmoji) ?? '[]');
+    return Array.isArray(list) ? list.filter((e): e is string => typeof e === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+export const saveRecentEmoji = (list: string[]) => write(KEY.recentEmoji, JSON.stringify(list));
 
 /** League of Legends account for post-game cards: Riot ID ("Name#TAG") and server. */
 export interface RiotAccount {

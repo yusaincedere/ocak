@@ -8,7 +8,6 @@ import { icon, RIOT_ID } from '../lol';
 import { riotOf } from '../presence';
 import { useStore } from '../store';
 import { X } from './Icons';
-import { ChampionRoulette } from './ChampionRoulette';
 
 type Champ = { id: string; key: number; name: string };
 
@@ -25,7 +24,6 @@ export function LolPanel({ meta, onClose, initialPick }: { meta: LolMeta; onClos
   const [build, setBuild] = useState<LolBuild | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [rouletteOpen, setRouletteOpen] = useState(false);
   const version = meta.version!;
 
   useEffect(() => {
@@ -75,11 +73,6 @@ export function LolPanel({ meta, onClose, initialPick }: { meta: LolMeta; onClos
       </div>
 
       <div className="lol-scroll">
-        <button type="button" className="roulette-launch" onClick={() => setRouletteOpen(true)}>
-          <span aria-hidden="true">✦</span>
-          <span><strong>{t('roulette.title')}</strong><small>{t('roulette.launch')}</small></span>
-          <span aria-hidden="true">↗</span>
-        </button>
         <QuickPicks meta={meta} current={champion} onPick={choose} />
 
         {build ? (
@@ -91,7 +84,6 @@ export function LolPanel({ meta, onClose, initialPick }: { meta: LolMeta; onClos
       </div>
 
       <RiotAccountForm />
-      {rouletteOpen && <ChampionRoulette meta={meta} onPick={choose} onClose={() => setRouletteOpen(false)} />}
     </aside>
   );
 }

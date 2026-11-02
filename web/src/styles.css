@@ -989,6 +989,13 @@ a {
   scrollbar-width: thin;
   scrollbar-color: #ffffff33 transparent;
 }
+.chat-log {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .chat-line {
   flex-shrink: 0;
   width: fit-content;
@@ -1148,6 +1155,41 @@ button.chat-name:hover {
   font: 600 13px/1 var(--hud);
 }
 
+/* the emoji tray covers the messages while it's open */
+.chat-emoji {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+  background: #0b0a08;
+  scrollbar-width: thin;
+  scrollbar-color: #ffffff33 transparent;
+}
+.chat-emoji h3 {
+  margin: 8px 2px 2px;
+  color: var(--chat-dim);
+  font: 600 12px/16px var(--hud);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.chat-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+}
+.chat-emoji-grid button {
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  cursor: pointer;
+  font: 20px/1 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+}
+.chat-emoji-grid button:hover {
+  background: #ffffff1f;
+}
+
 /* the composer */
 .chat-input {
   display: flex;
@@ -1172,6 +1214,10 @@ button.chat-name:hover {
   border-radius: 0;
   background: transparent;
   color: var(--chat-dim);
+}
+.chat-input .icon-btn.active {
+  background: transparent;
+  color: var(--chat-accent);
 }
 .chat-send {
   color: #c9bfae66;

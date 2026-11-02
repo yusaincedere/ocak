@@ -2,9 +2,11 @@ import { create } from 'zustand';
 import type { LolMeta, LolTier, ServerConfig } from '../../server/src/protocol';
 import type { AvatarPick } from './avatar';
 import type { DesktopSettings } from './desktop-bridge';
+import { pushRecentEmoji } from './emoji';
 import {
   getAvatar,
   getChatSound,
+  getRecentEmoji,
   getLang,
   getName,
   getNoiseReduction,
@@ -12,6 +14,7 @@ import {
   getRiotAccount,
   getVolumes,
   saveChatSound,
+  saveRecentEmoji,
   saveNoiseReduction,
   saveLolRank,
   saveRiotAccount,
@@ -48,6 +51,8 @@ interface State {
   noiseReduction: boolean;
   /** a sound for new chat messages */
   chatSound: boolean;
+  /** the picker's first row, kept on this device */
+  recentEmoji: string[];
   riot: RiotAccount | null;
   /** /api/lol/meta, once loaded (enabled: false when the server has no Riot key) */
   lolMeta: LolMeta | null;
@@ -66,6 +71,7 @@ interface State {
   setVolume: (deviceId: string, volume: number) => void;
   setNoiseReduction: (on: boolean) => void;
   setChatSound: (on: boolean) => void;
+  addRecentEmoji: (emoji: string) => void;
   setRiot: (a: RiotAccount | null) => void;
   setLolMeta: (m: LolMeta | null) => void;
   setLolRank: (r: LolTier) => void;
@@ -84,6 +90,7 @@ export const useStore = create<State>((set) => ({
   volumes: getVolumes(),
   noiseReduction: getNoiseReduction(),
   chatSound: getChatSound(),
+  recentEmoji: getRecentEmoji(),
   riot: getRiotAccount(),
   lolMeta: null,
   lolRank: getLolRank(),
@@ -122,6 +129,12 @@ export const useStore = create<State>((set) => ({
     set({ chatSound });
     if (chatSound) sounds.message(); // a sample
   },
+  addRecentEmoji: (emoji) =>
+    set((s) => {
+      const recentEmoji = pushRecentEmoji(s.recentEmoji, emoji);
+      saveRecentEmoji(recentEmoji);
+      return { recentEmoji };
+    }),
   setRiot: (riot) => {
     saveRiotAccount(riot);
     set({ riot });
