@@ -1,4 +1,4 @@
-import { ScreenSharePresets, VideoPresets, type RoomOptions, type ScreenShareCaptureOptions } from 'livekit-client';
+import { ScreenSharePresets, VideoPresets, type RoomOptions } from 'livekit-client';
 import { api } from './api';
 import { translate } from './i18n';
 import { deviceId, getCreateCode, rememberRoom } from './identity';
@@ -19,14 +19,6 @@ export const roomOptions: RoomOptions = {
     dtx: true,
     red: true,
   },
-};
-
-export const screenShareOptions: ScreenShareCaptureOptions = {
-  audio: true, // tab / system audio where the browser supports it
-  systemAudio: 'include',
-  selfBrowserSurface: 'exclude',
-  surfaceSwitching: 'include',
-  resolution: ScreenSharePresets.h1080fps30.resolution,
 };
 
 /** Create a new room and join it. Throws ApiError (code 'create_code' if the server code is needed). */

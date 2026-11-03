@@ -174,7 +174,7 @@ export function useCallChat(): ChatThread & { announceRoulette: (champion: strin
   const room = useRoomContext();
   const held = useHeldItems();
   // Keep the draft and send state for the call, even while the panel is closed.
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(() => useStore.getState().chatDraft);
   const [sending, setSending] = useState(false);
   const [sendFailed, setSendFailed] = useState(false);
   const sendingRef = useRef(false);
@@ -233,7 +233,11 @@ export function useCallChat(): ChatThread & { announceRoulette: (champion: strin
     setSendFailed(false);
     try {
       await chat.send(message);
-      setDraft((current) => current === text ? '' : current);
+      setDraft((current) => {
+        const next = current === text ? '' : current;
+        useStore.getState().setChatDraft(next);
+        return next;
+      });
     } catch {
       setSendFailed(true);
     } finally {
@@ -255,7 +259,8 @@ export function useCallChat(): ChatThread & { announceRoulette: (champion: strin
     }
   };
 
-  return { items, sendText, sendImage, announceRoulette, draft, setDraft, sending, sendFailed };
+  return { items, sendText, sendImage, announceRoulette, draft,
+    setDraft: (text) => { setDraft(text); useStore.getState().setChatDraft(text); }, sending, sendFailed };
 }
 
 /** Checks the type and size; big photos are scaled down (GIFs are sent as they are, to keep the animation). */

@@ -1,8 +1,9 @@
 import { MediaDeviceMenu, useLocalParticipant, useTrackToggle } from '@livekit/components-react';
 import { Track } from 'livekit-client';
-import { useCallback, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { mediaErrorKey } from '../media-errors';
-import { leaveCall, screenShareOptions } from '../call';
+import { leaveCall } from '../call';
+import { getShareQuality, saveShareQuality, shareSettings, SHARE_QUALITIES, type ShareQuality } from '../share-quality';
 import { desktop } from '../desktop-bridge';
 import { translate, useT, type MessageKey } from '../i18n';
 import { setPresence } from '../presence';
@@ -118,21 +119,49 @@ export function CameraButton() {
 }
 
 export function ScreenShareButton() {
-  const { enabled, pending, toggle } = useTrackToggle({
-    source: Track.Source.ScreenShare,
-    captureOptions: screenShareOptions,
-    onDeviceError: (err) => {
-      // Cancelling the picker is not an error worth showing. The desktop app reports every
-      // refusal as an AbortError and tells us the real reason itself (see ScreenPicker).
-      if (err.name === 'NotAllowedError' || (err.name === 'AbortError' && desktop?.onShareError)) return;
-      reportDeviceError('screen')(err);
-    },
-  });
+  const { localParticipant } = useLocalParticipant();
+  const [pending, setPending] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [quality, setQuality] = useState(getShareQuality);
+  const ref = useRef<HTMLDivElement>(null);
+  const enabled = localParticipant.isScreenShareEnabled;
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const escape = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
+  }, [open]);
   const t = useT();
+  const start = async (selected: ShareQuality) => {
+    setQuality(selected);
+    saveShareQuality(selected);
+    setOpen(false);
+    setPending(true);
+    try {
+      const { capture, publish } = shareSettings(selected);
+      await localParticipant.setScreenShareEnabled(true, capture, publish);
+    } catch (err) {
+      if (err instanceof Error && (err.name === 'NotAllowedError' || (err.name === 'AbortError' && desktop?.onShareError))) return;
+      reportDeviceError('screen')(err instanceof Error ? err : new Error('screen share failed'));
+    } finally { setPending(false); }
+  };
   return (
-    <IconButton label={enabled ? t('controls.stopSharing') : t('controls.shareScreen')} active={enabled} disabled={pending} onClick={() => void toggle()}>
-      <Screen />
-    </IconButton>
+    <div className="share-quality-control" ref={ref}>
+      <IconButton label={enabled ? t('controls.stopSharing') : t('controls.shareScreen')} active={enabled} disabled={pending} onClick={() => {
+        if (enabled) {
+          setPending(true);
+          void localParticipant.setScreenShareEnabled(false).catch(reportDeviceError('screen')).finally(() => setPending(false));
+        } else setOpen((value) => !value);
+      }}><Screen /></IconButton>
+      {open && <div className="share-quality-menu" role="group" aria-label={t('share.quality')}>
+        {SHARE_QUALITIES.map((choice) => <button type="button" key={choice} aria-current={choice === quality ? 'true' : undefined}
+          onClick={() => void start(choice)}>
+          <strong>{t(`share.${choice}`)}</strong><small>{t(`share.${choice}Hint`)}</small>
+        </button>)}
+      </div>}
+    </div>
   );
 }
 

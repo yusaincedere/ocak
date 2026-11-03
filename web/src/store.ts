@@ -40,6 +40,7 @@ interface State {
   /** Loaded from /api/config at startup. */
   serverConfig: ServerConfig | null;
   call: Call | null;
+  chatDraft: string;
   deafened: boolean;
   notice: string | null;
   /** Only set inside the desktop app. */
@@ -64,6 +65,7 @@ interface State {
   setAvatar: (a: AvatarPick | null) => void;
   setServerConfig: (c: ServerConfig) => void;
   setCall: (c: Call | null) => void;
+  setChatDraft: (draft: string) => void;
   setDeafened: (d: boolean) => void;
   setNotice: (n: string | null) => void;
   setDesktopSettings: (s: DesktopSettings) => void;
@@ -83,6 +85,7 @@ export const useStore = create<State>((set) => ({
   avatar: getAvatar(),
   serverConfig: null,
   call: null,
+  chatDraft: '',
   deafened: false,
   notice: null,
   desktopSettings: null,
@@ -106,7 +109,8 @@ export const useStore = create<State>((set) => ({
     set({ avatar });
   },
   setServerConfig: (serverConfig) => set({ serverConfig }),
-  setCall: (call) => set((s) => ({ call, deafened: call ? s.deafened : false, pttActive: false })),
+  setCall: (call) => set((s) => ({ call, chatDraft: call ? s.chatDraft : '', deafened: call ? s.deafened : false, pttActive: false })),
+  setChatDraft: (chatDraft) => set({ chatDraft }),
   setDeafened: (deafened) => set({ deafened }),
   setNotice: (notice) => set({ notice }),
   setDesktopSettings: (desktopSettings) => set({ desktopSettings }),

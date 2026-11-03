@@ -10,7 +10,8 @@ import { ChampionRoulette } from './ChampionRoulette';
 import { ConnectionState, RoomEvent } from 'livekit-client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { mediaErrorKey } from '../media-errors';
-import { leaveCall, roomOptions } from '../call';
+import { ApiError } from '../api';
+import { joinCall, leaveCall, roomOptions } from '../call';
 import { desktop } from '../desktop-bridge';
 import { useLolMeta } from '../lol';
 import { useNarrow } from '../narrow';
@@ -36,8 +37,26 @@ import { CameraButton, DeafenButton, IconButton, LeaveButton, MicButton, ScreenS
 
 export function CallView({ call }: { call: Call }) {
   const ptt = usePushToTalk();
+  const t = useT();
+  const [disconnected, setDisconnected] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  useEffect(() => { setDisconnected(false); setRetrying(false); setRetryError(null); }, [call.token]);
+
+  const retry = async () => {
+    if (retrying) return;
+    setRetrying(true);
+    setRetryError(null);
+    try {
+      await joinCall(call.roomId, call.password);
+    } catch (err) {
+      setRetryError(err instanceof ApiError ? err.message : translate('call.failed'));
+      setRetrying(false);
+    }
+  };
 
   return (
+    <>
     <LiveKitRoom
       key={call.token}
       className="call"
@@ -49,14 +68,11 @@ export function CallView({ call }: { call: Call }) {
       options={roomOptions}
       onDisconnected={() => {
         // Still "in" the call in our state = we didn't press leave.
-        if (useStore.getState().call) {
-          leaveCall();
-          useStore.getState().setNotice(translate('call.disconnected'));
-        }
+        if (useStore.getState().call?.token === call.token) setDisconnected(true);
       }}
       onError={(err) => {
         // Errors after we pressed leave are just the connection closing.
-        if (useStore.getState().call) useStore.getState().setNotice(translate(mediaErrorKey(err)));
+        if (useStore.getState().call?.token === call.token) useStore.getState().setNotice(translate(mediaErrorKey(err)));
       }}
       onMediaDeviceFailure={(failure) => useStore.getState().setNotice(translate(mediaErrorKey({ name: failure ?? 'Other' })))}
     >
@@ -68,6 +84,18 @@ export function CallView({ call }: { call: Call }) {
       <ScreenPicker />
       <CallLayout call={call} />
     </LiveKitRoom>
+    {disconnected && <div className="call-recovery" role="alertdialog" aria-label={t('call.disconnected')}>
+      <div className="call-recovery-card">
+        <h2>{t('call.disconnected')}</h2>
+        <p>{t('call.recoveryHint')}</p>
+        {retryError && <p className="form-error" role="alert">{retryError}</p>}
+        <div className="call-recovery-actions">
+          <button type="button" className="btn primary" disabled={retrying} onClick={() => void retry()}>{t(retrying ? 'call.retrying' : 'call.retry')}</button>
+          <button type="button" className="btn subtle" onClick={leaveCall}>{t('call.leave')}</button>
+        </div>
+      </div>
+    </div>}
+    </>
   );
 }
 
