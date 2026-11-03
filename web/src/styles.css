@@ -608,6 +608,8 @@ a {
   width: 60%;
   height: 60%;
 }
+.avatar-badge.headphones.paired { left: 0; right: auto; }
+.person-chip .avatar-badge.headphones.paired { left: -3px; right: auto; }
 .person-name {
   max-width: 100%;
   display: inline-flex;
@@ -624,7 +626,9 @@ a {
 }
 .person-status {
   min-height: 18px;
+  max-width: 220px;
   margin-top: -9px;
+  text-align: center;
   color: var(--text-2);
   font-size: 13px;
   line-height: 18px;

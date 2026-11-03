@@ -17,12 +17,14 @@ export const avatarOf = (p: Participant): AvatarPick | null => parsePick(p.attri
 
 export type PersonState = 'deafened' | 'micOff' | 'silenced' | 'ptt';
 
-/** What to say about someone in the voice room; the one that matters most when several apply. */
-export function personState(p: { deafened: boolean; micOff: boolean; silencedForMe: boolean; ptt: boolean }): PersonState | null {
-  if (p.deafened) return 'deafened';
-  if (p.micOff) return 'micOff';
-  if (p.silencedForMe) return 'silenced';
-  return p.ptt ? 'ptt' : null;
+/** Show mute and deafen independently; the personal volume state is secondary to both. */
+export function personState(p: { deafened: boolean; micOff: boolean; silencedForMe: boolean; ptt: boolean }): PersonState[] {
+  const states: PersonState[] = [];
+  if (p.micOff) states.push('micOff');
+  if (p.deafened) states.push('deafened');
+  if (!states.length && p.silencedForMe) states.push('silenced');
+  if (!states.length && p.ptt) states.push('ptt');
+  return states;
 }
 
 /** Someone's Riot account ("Name#TAG|tr1" in the attribute). */

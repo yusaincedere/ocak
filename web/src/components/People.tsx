@@ -12,7 +12,8 @@ import { usePersonMenu } from './VolumeMenu';
 function usePersonState(participant: Participant) {
   const silencedForMe = useStore((s) => !participant.isLocal && s.volumes[deviceOf(participant.identity)] === 0);
   const ptt = usesPushToTalk(participant);
-  return personState({ deafened: isDeafened(participant), micOff: !participant.isMicrophoneEnabled && !ptt, silencedForMe, ptt });
+  const deafened = isDeafened(participant);
+  return personState({ deafened, micOff: !participant.isMicrophoneEnabled && (!ptt || deafened), silencedForMe, ptt });
 }
 
 /**
@@ -20,6 +21,7 @@ function usePersonState(participant: Participant) {
  * `size` in px; leave it out to take --size from the surrounding layout.
  */
 export function Avatar({ participant, size }: { participant: Participant; size?: number }) {
+  const t = useT();
   const speaking = useIsSpeaking(participant);
   const state = usePersonState(participant);
   const name = participant.name || participant.identity;
@@ -29,13 +31,12 @@ export function Avatar({ participant, size }: { participant: Participant; size?:
   const style = { '--c': colorFor(participant.identity), ...(size ? { '--size': `${size}px` } : {}) } as CSSProperties;
 
   return (
-    <div className={`avatar${speaking ? ' speaking' : ''}${state === 'deafened' ? ' deafened' : ''}`} style={style}>
+    <div className={`avatar${speaking ? ' speaking' : ''}${state.includes('deafened') ? ' deafened' : ''}`} style={style}>
       <span className="avatar-initials">{initials(name)}</span>
       {pick && <AvatarPhoto key={pick.src} pick={pick} />}
-      {(state === 'deafened' || state === 'micOff') && (
-        <span className="avatar-badge">{state === 'deafened' ? <HeadphonesOff /> : <MicOff />}</span>
-      )}
-      {state === 'silenced' && (
+      {state.includes('micOff') && <span className="avatar-badge mic" title={t('person.micOff')}><MicOff /></span>}
+      {state.includes('deafened') && <span className={`avatar-badge headphones${state.includes('micOff') ? ' paired' : ''}`} title={t('person.deafened')}><HeadphonesOff /></span>}
+      {state.includes('silenced') && (
         <span className="avatar-badge mine">
           <VolumeOff />
         </span>
@@ -70,8 +71,8 @@ function PersonStatus({ participant }: { participant: Participant }) {
   const t = useT();
   const state = usePersonState(participant);
   return (
-    <span className={`person-status${state === 'deafened' || state === 'micOff' ? ' off' : ''}`}>
-      {state && t(`person.${state}`)}
+    <span className={`person-status${state.includes('deafened') || state.includes('micOff') ? ' off' : ''}`}>
+      {state.map((s) => t(`person.${s}`)).join(' · ')}
     </span>
   );
 }
