@@ -326,21 +326,42 @@ function AvatarSync() {
   return null;
 }
 
-/** Join / leave chimes for other people. */
+/** Distinct call cues, including reconnects; never double-chime for one interruption. */
 function CallSounds() {
   const room = useRoomContext();
+  const enabled = useStore((s) => s.callSound);
+  const interrupted = useRef(false);
   useEffect(() => {
-    const join = () => sounds.join();
-    const leave = () => sounds.leave();
-    const connected = () => sounds.join();
+    const join = () => { if (enabled) sounds.join(); };
+    const leave = () => { if (enabled) sounds.leave(); };
+    const connected = () => { if (enabled) sounds.join(); };
+    const lost = () => {
+      if (interrupted.current) return;
+      interrupted.current = true;
+      if (enabled) sounds.connectionLost();
+    };
+    const restored = () => {
+      if (!interrupted.current) return;
+      interrupted.current = false;
+      if (enabled) sounds.connectionRestored();
+    };
+    const disconnected = () => {
+      if (useStore.getState().call && !interrupted.current) lost();
+    };
     room.on(RoomEvent.ParticipantConnected, join);
     room.on(RoomEvent.ParticipantDisconnected, leave);
     room.on(RoomEvent.Connected, connected);
+    room.on(RoomEvent.Reconnecting, lost);
+    room.on(RoomEvent.Reconnected, restored);
+    room.on(RoomEvent.Disconnected, disconnected);
     return () => {
       room.off(RoomEvent.ParticipantConnected, join);
       room.off(RoomEvent.ParticipantDisconnected, leave);
       room.off(RoomEvent.Connected, connected);
+      room.off(RoomEvent.Reconnecting, lost);
+      room.off(RoomEvent.Reconnected, restored);
+      room.off(RoomEvent.Disconnected, disconnected);
     };
-  }, [room]);
+  }, [room, enabled]);
   return null;
 }

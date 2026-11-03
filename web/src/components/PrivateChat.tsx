@@ -49,7 +49,7 @@ export function usePrivateChats(participants: Participant[]) {
       const reading = !!thread?.open && !thread.collapsed;
       add(make(from, name, device));
       setThreads((all) => receiveInThread(all, device, name));
-      if (useStore.getState().chatSound && (!reading || document.hidden || !document.hasFocus())) sounds.message();
+      if (useStore.getState().chatSound && (!reading || document.hidden || !document.hasFocus())) sounds.privateMessage();
     };
     const receivePicture = async (reader: ByteStreamReader, identity: string) => {
       const blob = await readPicture(reader);

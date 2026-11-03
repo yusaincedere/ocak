@@ -1,4 +1,4 @@
-// Tiny synthesized UI sounds (no audio files): someone joins, leaves, you mute/unmute.
+// Tiny synthesized UI sounds (no audio files) for call and message events.
 
 let ctx: AudioContext | null = null;
 
@@ -30,8 +30,11 @@ export const sounds = {
   rouletteWin: () => tone([523, 659, 784, 1047], 0.11, 0.07, 'triangle'),
   join: () => tone([523, 784]), // rising
   leave: () => tone([784, 523]), // falling
+  connectionLost: () => tone([440, 330, 220], 0.13, 0.07, 'triangle'),
+  connectionRestored: () => tone([440, 587, 880], 0.11, 0.07, 'triangle'),
   mute: () => tone([392], 0.06, 0.05),
   unmute: () => tone([587], 0.06, 0.05),
   // A soft two-note "pop": noticeable without being annoying.
   message: () => tone([740, 1110], 0.07, 0.07, 'triangle'),
+  privateMessage: () => tone([659, 880, 659], 0.085, 0.075, 'sine'),
 };

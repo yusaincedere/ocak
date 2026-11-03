@@ -6,6 +6,7 @@ import { pushRecentEmoji } from './emoji';
 import {
   getAvatar,
   getChatSound,
+  getCallSound,
   getRecentEmoji,
   getLang,
   getName,
@@ -14,6 +15,7 @@ import {
   getRiotAccount,
   getVolumes,
   saveChatSound,
+  saveCallSound,
   saveRecentEmoji,
   saveNoiseReduction,
   saveLolRank,
@@ -52,6 +54,8 @@ interface State {
   noiseReduction: boolean;
   /** a sound for new chat messages */
   chatSound: boolean;
+  /** joins, leaves, and connection changes */
+  callSound: boolean;
   /** the picker's first row, kept on this device */
   recentEmoji: string[];
   riot: RiotAccount | null;
@@ -73,6 +77,7 @@ interface State {
   setVolume: (deviceId: string, volume: number) => void;
   setNoiseReduction: (on: boolean) => void;
   setChatSound: (on: boolean) => void;
+  setCallSound: (on: boolean) => void;
   addRecentEmoji: (emoji: string) => void;
   setRiot: (a: RiotAccount | null) => void;
   setLolMeta: (m: LolMeta | null) => void;
@@ -93,6 +98,7 @@ export const useStore = create<State>((set) => ({
   volumes: getVolumes(),
   noiseReduction: getNoiseReduction(),
   chatSound: getChatSound(),
+  callSound: getCallSound(),
   recentEmoji: getRecentEmoji(),
   riot: getRiotAccount(),
   lolMeta: null,
@@ -132,6 +138,11 @@ export const useStore = create<State>((set) => ({
     saveChatSound(chatSound);
     set({ chatSound });
     if (chatSound) sounds.message(); // a sample
+  },
+  setCallSound: (callSound) => {
+    saveCallSound(callSound);
+    set({ callSound });
+    if (callSound) sounds.join(); // a sample
   },
   addRecentEmoji: (emoji) =>
     set((s) => {

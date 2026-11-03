@@ -15,6 +15,7 @@ const KEY = {
   volumes: 'ocak.volumes',
   noiseReduction: 'ocak.noiseReduction',
   chatSound: 'ocak.chatSound',
+  callSound: 'ocak.callSound',
   recentEmoji: 'ocak.recentEmoji',
   riot: 'ocak.riot',
   lolRecent: 'ocak.lolRecent',
@@ -88,6 +89,8 @@ export const getNoiseReduction = () => read(KEY.noiseReduction) !== 'off';
 export const saveNoiseReduction = (on: boolean) => write(KEY.noiseReduction, on ? 'on' : 'off');
 export const getChatSound = () => read(KEY.chatSound) !== 'off';
 export const saveChatSound = (on: boolean) => write(KEY.chatSound, on ? 'on' : 'off');
+export const getCallSound = () => read(KEY.callSound) !== 'off';
+export const saveCallSound = (on: boolean) => write(KEY.callSound, on ? 'on' : 'off');
 export function getRecentEmoji(): string[] {
   try {
     const list: unknown = JSON.parse(read(KEY.recentEmoji) ?? '[]');

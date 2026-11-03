@@ -306,5 +306,7 @@
   "chat.openImage": "Büyüt",
   "common.close": "Kapat",
   "settings.chatSound": "Mesaj sesi",
-  "settings.chatSoundDesc": "Sohbet kapalıyken ya da başka bir pencereye bakarken yeni mesaj gelince kısa bir ses çalar."
+  "settings.chatSoundDesc": "Sohbet kapalıyken ya da başka bir pencereye bakarken oda ve özel mesajlar için farklı sesler çalar.",
+  "settings.callSound": "Görüşme sesleri",
+  "settings.callSoundDesc": "Biri katıldığında veya ayrıldığında ve bağlantı koptuğunda veya düzeldiğinde farklı sesler çalar."
 }

@@ -306,5 +306,7 @@
   "chat.openImage": "Enlarge",
   "common.close": "Close",
   "settings.chatSound": "Message sound",
-  "settings.chatSoundDesc": "Plays a short sound for new messages while the chat is closed or you're in another window."
+  "settings.chatSoundDesc": "Plays different sounds for room and private messages while their chat is closed or you're in another window.",
+  "settings.callSound": "Call sounds",
+  "settings.callSoundDesc": "Plays distinct sounds when someone joins or leaves and when the connection drops or recovers."
 }

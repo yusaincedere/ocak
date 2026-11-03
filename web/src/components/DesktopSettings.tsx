@@ -49,6 +49,7 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
 
   const noiseReduction = useStore((s) => s.noiseReduction);
   const chatSound = useStore((s) => s.chatSound);
+  const callSound = useStore((s) => s.callSound);
 
   const save = async (patch: Partial<Settings>) => {
     if (!desktop) return;
@@ -111,6 +112,17 @@ export function DesktopSettings({ onClose }: { onClose: () => void }) {
           </div>
           <label className="switch">
             <input type="checkbox" aria-label={t('settings.chatSound')} checked={chatSound} onChange={(e) => useStore.getState().setChatSound(e.target.checked)} />
+            <span />
+          </label>
+        </section>
+
+        <section className="setting">
+          <div>
+            <h3>{t('settings.callSound')}</h3>
+            <p className="muted">{t('settings.callSoundDesc')}</p>
+          </div>
+          <label className="switch">
+            <input type="checkbox" aria-label={t('settings.callSound')} checked={callSound} onChange={(e) => useStore.getState().setCallSound(e.target.checked)} />
             <span />
           </label>
         </section>
