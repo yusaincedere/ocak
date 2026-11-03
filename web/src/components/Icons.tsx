@@ -121,6 +121,17 @@ export const VolumeOff = (p: P) => (
 );
 /** The League helper: the "L" from public/lol.png, painted in the current text color like the other icons. */
 export const LolLogo = ({ size = 18 }: { size?: number }) => <span className="lol-logo" style={{ width: size, height: size }} aria-hidden />;
+/** The Ocak wolf, in the current text color. */
+export const Wolf = ({ size = 18, ...p }: P) => (
+  <svg width={size} height={size} viewBox="6 8 46 58" fill="currentColor" aria-hidden {...p}>
+    <path d="M8 64C9 57 10.5 51 10.5 46C9.5 40 10 34 13 29.5L15.5 26L16.5 10.5Q17.5 8 19.6 10L26 21.5L29 21.6C32.5 18.5 37 15 41 12.6L45.5 10C47 9.2 48.8 9.8 48.7 11.4C50 12 50 14 48.6 14.8L38.5 27.8L44.2 25C45.6 24.4 46.8 25.8 46 27.3C45.6 28 44.9 28.5 44.1 28.9L37 34.5L39.5 38L36.2 39.6L39.5 43.5L36.4 45C38.5 52 41 58 44 64Z" />
+  </svg>
+);
+export const More = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M5 12h.01M12 12h.01M19 12h.01" strokeWidth={3} />
+  </svg>
+);
 export const Smile = (p: P) => (
   <svg {...base(p)}>
     <circle cx="12" cy="12" r="10" />

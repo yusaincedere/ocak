@@ -7,7 +7,7 @@ import { getRecentChampions, saveRecentChampions } from '../identity';
 import { icon, RIOT_ID } from '../lol';
 import { riotOf } from '../presence';
 import { useStore } from '../store';
-import { X } from './Icons';
+import { ChevronDown, X } from './Icons';
 
 type Champ = { id: string; key: number; name: string };
 
@@ -62,8 +62,18 @@ export function LolPanel({ meta, onClose, initialPick }: { meta: LolMeta; onClos
     saveRecentChampions([initialPick.id, ...getRecentChampions().filter((c) => c !== initialPick.id)]);
   }, [initialPick]);
 
+  // Esc closes it, unless Esc is already busy with the chat or a dialog.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || document.activeElement?.closest('.chat-widget')) return;
+      if (!document.querySelector('.modal-backdrop, .lightbox, dialog[open]')) onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   return (
-    <aside className="chat-panel lol-panel">
+    <aside className="chat-panel lol-panel" aria-label={t('lol.title')}>
       <div className="lol-top">
         <ChampionSearch meta={meta} onPick={choose} />
         <RankPicker />
@@ -83,6 +93,15 @@ export function LolPanel({ meta, onClose, initialPick }: { meta: LolMeta; onClos
         {!!meta.games && meta.games < 3000 && <p className="lol-note">{t('lol.collecting', { n: meta.games.toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-GB') })}</p>}
       </div>
 
+      {build && <section className="lol-matchups lol-section">
+        <div className="lol-section-title"><span>{t('lol.matchups')}</span></div>
+        {build.counters.hard.length || build.counters.easy.length ? (
+          <div className="lol-counters">
+            <Counters label={t('lol.hard')} list={build.counters.hard} version={version} onPick={choose} kind="hard" />
+            <Counters label={t('lol.easy')} list={build.counters.easy} version={version} onPick={choose} kind="easy" />
+          </div>
+        ) : <p className="lol-note">{t('lol.noMatchups', { name: build.champion.name, n: build.games })}</p>}
+      </section>}
       <RiotAccountForm />
     </aside>
   );
@@ -382,16 +401,6 @@ function BuildView({
         </Section>
       )}
 
-      <Section title={t('lol.matchups')}>
-        {b.counters.hard.length || b.counters.easy.length ? (
-          <div className="lol-counters">
-            <Counters label={t('lol.hard')} list={b.counters.hard} version={version} onPick={onChampion} kind="hard" />
-            <Counters label={t('lol.easy')} list={b.counters.easy} version={version} onPick={onChampion} kind="easy" />
-          </div>
-        ) : (
-          <p className="lol-note">{t('lol.noMatchups', { name: b.champion.name, n: b.games })}</p>
-        )}
-      </Section>
     </div>
   );
 }

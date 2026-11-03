@@ -15,7 +15,7 @@ import {
   type TrackReferenceOrPlaceholder,
 } from '@livekit/components-react';
 import { RoomEvent, Track } from 'livekit-client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useT } from '../i18n';
 import { VoiceRoom, VoiceStrip } from './People';
 import { usePersonMenu } from './VolumeMenu';
@@ -35,6 +35,18 @@ const sameTrack = (a?: TrackReferenceOrPlaceholder, b?: TrackReferenceOrPlacehol
  */
 export function Stage() {
   const t = useT();
+  const [compactShare, setCompactShare] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const onChange = () => {
+      const active = document.fullscreenElement === stageRef.current;
+      setFullscreen(active);
+      if (active) setCompactShare(false);
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
   const participants = useParticipants();
   const tracks = useTracks(
     [
@@ -71,12 +83,25 @@ export function Stage() {
   }, [screenShares.map((v) => v.publication.trackSid + v.publication.isSubscribed).join(), videos.map((v) => v.publication.trackSid).join(), focusTrack, layout]);
 
   return (
-    <div className="stage" data-lk-theme="default">
+    <div ref={stageRef} className="stage" data-lk-theme="default">
       {videos.length === 0 ? (
         <VoiceRoom participants={participants} />
       ) : (
         <LayoutContextProvider value={layout}>
-          <div className="stage-tiles">
+          <div className={`stage-tiles${compactShare && !fullscreen && focusTrack?.source === Track.Source.ScreenShare ? ' compact-share' : ''}`}>
+            {focusTrack?.source === Track.Source.ScreenShare && (
+              <div className="share-view-controls">
+                {!fullscreen && <button type="button" onClick={() => setCompactShare((value) => !value)}>
+                  {t(compactShare ? 'call.shareLarger' : 'call.shareSmaller')}
+                </button>}
+                <button type="button" onClick={() => {
+                  if (document.fullscreenElement === stageRef.current) void document.exitFullscreen();
+                  else void stageRef.current?.requestFullscreen();
+                }}>
+                  {t(fullscreen ? 'call.exitFullscreen' : 'call.fullscreen')}
+                </button>
+              </div>
+            )}
             {!focusTrack ? (
               <GridLayout tracks={videos}>
                 <PersonTile />

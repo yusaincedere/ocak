@@ -8,11 +8,12 @@ import {
 import type { LolRole } from '../../../server/src/protocol';
 import { ChampionRoulette } from './ChampionRoulette';
 import { ConnectionState, RoomEvent } from 'livekit-client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { mediaErrorKey } from '../media-errors';
 import { leaveCall, roomOptions } from '../call';
 import { desktop } from '../desktop-bridge';
 import { useLolMeta } from '../lol';
+import { useNarrow } from '../narrow';
 import { translate, useT } from '../i18n';
 import { roomLink } from '../links';
 import { assignColors, deviceOf, resetColors, setPresence } from '../presence';
@@ -26,7 +27,7 @@ import { DesktopSettings } from './DesktopSettings';
 import { LolPanel } from './LolPanel';
 import { PostGameCard, usePostGame } from './PostGame';
 import { CopyButton, NameChip } from './Home';
-import { Dice, Gear, LolLogo, UserPlus } from './Icons';
+import { Dice, Gear, LolLogo, More, UserPlus, Wolf } from './Icons';
 import { VolumeMenu } from './VolumeMenu';
 import { SharerControl, ViewerControl } from './RemoteControl';
 import { ScreenPicker } from './ScreenPicker';
@@ -89,6 +90,7 @@ function CallLayout({ call }: { call: Call }) {
   const privateChats = usePrivateChats(participants);
   const [seen, setSeen] = useState(0);
   const t = useT();
+  const narrow = useNarrow();
 
   // Count unread chat while the panel is closed; a sound for messages from others.
   useChatSound(chat.items, chatOpen);
@@ -104,10 +106,24 @@ function CallLayout({ call }: { call: Call }) {
         ? t('call.reconnecting')
         : null;
 
+  const funControls = (
+    <>
+      <IconButton label={t(lolMeta?.enabled ? 'roulette.title' : 'roulette.unavailable')} active={rouletteOpen} disabled={!lolMeta?.enabled} onClick={() => setRouletteOpen(true)} className="roulette-btn">
+        <Dice />
+      </IconButton>
+      {lolMeta?.enabled && (
+        <IconButton label={t('lol.title')} active={panel === 'lol'} onClick={() => setPanel((v) => (v === 'lol' ? null : 'lol'))} className="lol-btn">
+          <LolLogo />
+        </IconButton>
+      )}
+    </>
+  );
+
   return (
     <>
       <header className="call-top">
         <div className="call-room">
+          <Wolf size={22} className="call-mark" />
           <span className="room-name">{call.roomId}</span>
           <InviteButton call={call} />
         </div>
@@ -160,15 +176,17 @@ function CallLayout({ call }: { call: Call }) {
       <footer className="controls">
         <MicButton />
         <DeafenButton />
-        <CameraButton />
-        <ScreenShareButton />
-        <IconButton label={t(lolMeta?.enabled ? 'roulette.title' : 'roulette.unavailable')} active={rouletteOpen} disabled={!lolMeta?.enabled} onClick={() => setRouletteOpen(true)} className="roulette-btn">
-          <Dice />
-        </IconButton>
-        {lolMeta?.enabled && (
-          <IconButton label={t('lol.title')} active={panel === 'lol'} onClick={() => setPanel((v) => (v === 'lol' ? null : 'lol'))} className="lol-btn">
-            <LolLogo />
-          </IconButton>
+        {narrow ? <ScreenShareButton /> : <CameraButton />}
+        {narrow ? (
+          <MoreControls active={panel === 'lol'}>
+            <CameraButton />
+            {funControls}
+          </MoreControls>
+        ) : (
+          <>
+            <ScreenShareButton />
+            {funControls}
+          </>
         )}
         <LeaveButton />
       </footer>
@@ -181,6 +199,39 @@ function CallLayout({ call }: { call: Call }) {
       {settingsOpen && <DesktopSettings onClose={() => setSettingsOpen(false)} />}
       {postGame.shown && <PostGameCard match={postGame.shown} friends={postGame.friends} night={postGame.night} onClose={postGame.close} />}
     </>
+  );
+}
+
+/** In a narrow window the less urgent buttons wait behind this one, so the main ones never clip. */
+function MoreControls({ active, children }: { active: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const t = useT();
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => !ref.current?.contains(e.target as Node) && setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+  return (
+    <div className="controls-more" ref={ref}>
+      <IconButton label={t('controls.more')} active={open || active} onClick={() => setOpen((v) => !v)}>
+        <More />
+      </IconButton>
+      {open && (
+        <div
+          className="controls-more-menu"
+          onClick={(e) => (e.target as HTMLElement).closest('.icon-btn') && setOpen(false)}
+        >
+          {children}
+        </div>
+      )}
+    </div>
   );
 }
 

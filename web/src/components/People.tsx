@@ -3,10 +3,17 @@ import type { Participant } from 'livekit-client';
 import { useState, type CSSProperties } from 'react';
 import { cropStyle, type AvatarPick } from '../avatar';
 import { useT } from '../i18n';
-import { avatarOf, colorFor, deviceOf, initials, isDeafened, usesPushToTalk } from '../presence';
+import { avatarOf, colorFor, deviceOf, initials, isDeafened, personState, usesPushToTalk } from '../presence';
 import { useStore } from '../store';
 import { HeadphonesOff, MicOff, VolumeOff } from './Icons';
 import { usePersonMenu } from './VolumeMenu';
+
+/** What's going on with someone's sound, whoever is looking. */
+function usePersonState(participant: Participant) {
+  const silencedForMe = useStore((s) => !participant.isLocal && s.volumes[deviceOf(participant.identity)] === 0);
+  const ptt = usesPushToTalk(participant);
+  return personState({ deafened: isDeafened(participant), micOff: !participant.isMicrophoneEnabled && !ptt, silencedForMe, ptt });
+}
 
 /**
  * Round avatar with the person's color, a speaking ring and a mute / deafen badge.
@@ -14,28 +21,24 @@ import { usePersonMenu } from './VolumeMenu';
  */
 export function Avatar({ participant, size }: { participant: Participant; size?: number }) {
   const speaking = useIsSpeaking(participant);
-  const deafened = isDeafened(participant);
-  const muted = !participant.isMicrophoneEnabled && !usesPushToTalk(participant);
+  const state = usePersonState(participant);
   const name = participant.name || participant.identity;
   // Our own picture shows right away; others' arrive as a participant attribute.
   const myAvatar = useStore((s) => s.avatar);
   const pick = participant.isLocal ? myAvatar : avatarOf(participant);
-  // You turned this person all the way down.
-  const silencedForMe = useStore((s) => !participant.isLocal && s.volumes[deviceOf(participant.identity)] === 0);
   const style = { '--c': colorFor(participant.identity), ...(size ? { '--size': `${size}px` } : {}) } as CSSProperties;
 
   return (
-    <div className={`avatar${speaking ? ' speaking' : ''}`} style={style}>
+    <div className={`avatar${speaking ? ' speaking' : ''}${state === 'deafened' ? ' deafened' : ''}`} style={style}>
       <span className="avatar-initials">{initials(name)}</span>
       {pick && <AvatarPhoto key={pick.src} pick={pick} />}
-      {deafened || muted ? (
-        <span className="avatar-badge">{deafened ? <HeadphonesOff /> : <MicOff />}</span>
-      ) : (
-        silencedForMe && (
-          <span className="avatar-badge mine">
-            <VolumeOff />
-          </span>
-        )
+      {(state === 'deafened' || state === 'micOff') && (
+        <span className="avatar-badge">{state === 'deafened' ? <HeadphonesOff /> : <MicOff />}</span>
+      )}
+      {state === 'silenced' && (
+        <span className="avatar-badge mine">
+          <VolumeOff />
+        </span>
       )}
     </div>
   );
@@ -62,10 +65,21 @@ function PersonName({ participant }: { participant: Participant }) {
   );
 }
 
+/** A line under the name, so a muted friend can be read at a glance, not only from the badge. */
+function PersonStatus({ participant }: { participant: Participant }) {
+  const t = useT();
+  const state = usePersonState(participant);
+  return (
+    <span className={`person-status${state === 'deafened' || state === 'micOff' ? ' off' : ''}`}>
+      {state && t(`person.${state}`)}
+    </span>
+  );
+}
+
 /** Everyone without a camera, big and centered: what a voice call looks like most of the time. */
 export function VoiceRoom({ participants }: { participants: Participant[] }) {
   const n = participants.length;
-  const size = n <= 2 ? 136 : n <= 4 ? 116 : n <= 8 ? 96 : n <= 15 ? 76 : 60;
+  const size = n <= 2 ? 168 : n <= 4 ? 140 : n <= 8 ? 104 : n <= 15 ? 76 : 60;
   return (
     <div className="voice-room">
       <div className="voice-room-people" style={{ '--s': `${size}px` } as CSSProperties}>
@@ -96,6 +110,7 @@ function Person({ participant, chip }: { participant: Participant; chip?: boolea
     <div className={chip ? 'person-chip' : 'person'} {...menu}>
       <Avatar participant={participant} size={chip ? 30 : undefined} />
       <PersonName participant={participant} />
+      {!chip && <PersonStatus participant={participant} />}
     </div>
   );
 }

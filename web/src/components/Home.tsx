@@ -8,7 +8,7 @@ import { parseJoinInput, roomLink } from '../links';
 import { colorFor, initials } from '../presence';
 import { useStore } from '../store';
 import { AvatarDialog, AvatarPicker } from './AvatarPicker';
-import { Copy, Pencil, X } from './Icons';
+import { Copy, Pencil, Wolf, X } from './Icons';
 import { AvatarPhoto } from './People';
 
 const ago = (t: number) => {
@@ -301,7 +301,7 @@ export function LanguageSwitch() {
 export function Brand() {
   return (
     <div className="brand">
-      <img src="/favicon.svg" alt="" width={28} height={28} />
+      <span className="brand-mark"><Wolf size={25} /></span>
       <span>ocak</span>
     </div>
   );

@@ -81,7 +81,7 @@ function createWindow() {
     minHeight: 560,
     title: 'Ocak',
     icon: ICON,
-    backgroundColor: '#111214',
+    backgroundColor: '#0e0c0a',
     autoHideMenuBar: true,
     show: false,
     webPreferences: {

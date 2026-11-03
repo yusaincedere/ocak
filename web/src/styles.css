@@ -1,15 +1,15 @@
 :root {
-  --bg: #111214;
-  --bg-2: #17181b;
-  --bg-3: #1e2024;
-  --bg-hover: #25272c;
-  --bg-active: #2c2f35;
-  --line: #2a2c31;
-  --text: #e9e9ec;
-  --text-2: #a4a6ad;
-  --text-3: #6d7078;
-  --accent: #e8ff5a;
-  --accent-ink: #111214;
+  --bg: #0e0c0a;
+  --bg-2: #181512;
+  --bg-3: #211d19;
+  --bg-hover: #2a2520;
+  --bg-active: #332d27;
+  --line: #2f2923;
+  --text: #efe9df;
+  --text-2: #b8ae9f;
+  --text-3: #8f8679;
+  --accent: #f2a13d;
+  --accent-ink: #16110a;
   --ok: #4ade80;
   --danger: #ff5a5f;
   --radius: 10px;
@@ -245,8 +245,14 @@ a {
   font-size: 20px;
   letter-spacing: -0.01em;
 }
-.brand img {
-  border-radius: 7px;
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 /* ---------- Home ---------- */
@@ -256,6 +262,7 @@ a {
   display: grid;
   place-items: center;
   padding: 24px 16px;
+  background: radial-gradient(ellipse 520px 300px at 50% 0, #f2a13d17 0, transparent 72%);
 }
 .home-card {
   width: 100%;
@@ -277,6 +284,9 @@ a {
   padding: 16px;
   font-size: 17px;
   border-radius: 12px;
+}
+.home-card > .btn.primary.big:not(:disabled) {
+  box-shadow: 0 10px 30px #f2a13d2e;
 }
 
 .name-chip {
@@ -359,7 +369,7 @@ a {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #0b0c0d;
+  background: var(--bg);
 }
 .call-top {
   display: flex;
@@ -415,6 +425,10 @@ a {
   margin-top: 2px;
 }
 /* Room names ("limon3") are words: show them like a name, not like code. */
+.call-mark {
+  flex: none;
+  color: var(--accent);
+}
 .room-name {
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -456,6 +470,7 @@ a {
   min-width: 0;
 }
 .stage-tiles {
+  position: relative;
   flex: 1;
   min-height: 0;
   padding: 8px;
@@ -463,6 +478,40 @@ a {
 .stage-tiles > .lk-grid-layout,
 .stage-tiles > .lk-focus-layout {
   height: 100%;
+}
+.stage-tiles .lk-focus-layout:not(:has(.lk-carousel)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.stage:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg);
+}
+.share-view-controls {
+  position: absolute;
+  z-index: 5;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  gap: 6px;
+}
+.share-view-controls button {
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.stage-tiles.compact-share {
+  display: grid;
+  place-items: center;
+}
+.stage-tiles.compact-share > .lk-focus-layout {
+  width: min(760px, 100%);
+  height: auto;
+  aspect-ratio: 16 / 9;
+  max-height: 100%;
 }
 /* ---------- Voice room: people without a camera ---------- */
 
@@ -490,7 +539,7 @@ a {
   gap: 12px;
 }
 .avatar {
-  --ring: transparent;
+  --ring: color-mix(in srgb, var(--c) 26%, transparent);
   position: relative;
   flex-shrink: 0;
   width: var(--size);
@@ -501,12 +550,19 @@ a {
   background: color-mix(in srgb, var(--c) 20%, var(--bg-3));
   color: var(--c);
   box-shadow:
-    0 0 0 3px #0b0c0d,
+    0 0 0 3px var(--bg),
     0 0 0 calc(3px + max(2px, var(--size) * 0.025)) var(--ring);
   transition: box-shadow 0.15s ease;
 }
 .avatar.speaking {
   --ring: var(--ok);
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 calc(4px + max(3px, var(--size) * 0.03)) var(--ring),
+    0 0 32px color-mix(in srgb, var(--ok) 40%, transparent);
+}
+.avatar.deafened {
+  opacity: 0.72;
 }
 .avatar-initials {
   font-weight: 700;
@@ -524,9 +580,9 @@ a {
   width: max(18px, calc(var(--size) * 0.28));
   height: max(18px, calc(var(--size) * 0.28));
   border-radius: 50%;
-  background: #0b0c0d;
+  background: var(--bg);
   color: var(--danger);
-  box-shadow: 0 0 0 2px #0b0c0d;
+  box-shadow: 0 0 0 2px var(--bg);
 }
 .avatar-badge svg {
   width: 60%;
@@ -545,6 +601,16 @@ a {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.person-status {
+  min-height: 18px;
+  margin-top: -9px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 18px;
+}
+.person-status.off {
+  color: #ff9a9d;
 }
 .person:has(.avatar.speaking) .person-name {
   color: var(--text);
@@ -769,6 +835,11 @@ a {
   background: var(--accent);
   color: var(--accent-ink);
 }
+.controls .icon-btn.active:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-ink);
+  filter: brightness(1.08);
+}
 .controls .icon-btn.off {
   background: rgba(255, 90, 95, 0.15);
   color: var(--danger);
@@ -776,13 +847,30 @@ a {
 .controls .icon-btn.leave {
   width: 64px;
   border-radius: 25px;
-  background: var(--danger);
+  background: #d13c42;
   color: white;
   margin-left: 8px;
 }
 .controls .icon-btn.leave:hover {
   filter: brightness(1.1);
-  background: var(--danger);
+  background: #d13c42;
+}
+.controls-more {
+  position: relative;
+}
+.controls-more-menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-2);
+  box-shadow: 0 12px 32px #00000080;
 }
 .device-group {
   display: flex;
@@ -888,7 +976,7 @@ a {
 }
 .chat-widget::before {
   border: 1px solid color-mix(in srgb, var(--chat-accent) 38%, transparent);
-  background: #0b0a089e;
+  background: #0b0a08b8;
   backdrop-filter: blur(6px) saturate(0.8);
 }
 .chat-widget::after {
@@ -1071,7 +1159,7 @@ button.chat-name:hover {
   overflow: hidden;
   border: 1px solid #ffffff2e;
   border-radius: 2px;
-  background: #17181bcc;
+  background: #181512cc;
   cursor: zoom-in;
 }
 .chat-image img {
@@ -1310,16 +1398,6 @@ button.chat-name:hover {
   pointer-events: none;
 }
 
-@media (max-width: 480px) {
-  .chat-panel.chat-widget {
-    width: min(280px, 100%);
-    height: 210px;
-  }
-  .chat-panel.chat-widget.private {
-    height: 180px;
-  }
-}
-
 .lightbox {
   position: fixed;
   inset: 0;
@@ -1362,11 +1440,62 @@ button.chat-name:hover {
   cursor: pointer;
 }
 
-@media (max-width: 720px) {
-  .call-body > .lol-panel {
-    inset: 8px;
-    width: auto;
+@media (max-width: 860px) {
+  .call-body {
+    flex-direction: column;
   }
+  .stage-wrap {
+    min-height: 0;
+  }
+  .voice-room {
+    padding: 12px;
+  }
+  /* the chat sits under the people here instead of over them */
+  .chat-stack {
+    position: relative;
+    inset: auto;
+    flex: none;
+    width: auto;
+    max-height: 60%;
+    margin: 0 8px 8px;
+    align-items: stretch;
+  }
+  .chat-panel.chat-widget {
+    width: 100%;
+    max-width: none;
+    height: 196px;
+    resize: none;
+  }
+  .chat-panel.chat-widget.private {
+    height: 170px;
+  }
+  /* League comes up as a sheet over the chat on narrow windows. */
+  .call-body > .lol-panel {
+    inset: auto 8px 8px;
+    width: auto;
+    max-height: 72%;
+  }
+  .controls {
+    gap: 8px;
+    padding: 8px 8px calc(12px + env(safe-area-inset-bottom));
+  }
+  .controls .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .controls .icon-btn.leave {
+    width: 56px;
+    margin-left: 4px;
+  }
+}
+
+@media (max-width: 860px) and (max-height: 700px) {
+  .chat-panel.chat-widget {
+    height: 150px;
+  }
+}
+
+@media (max-width: 720px) {
   .alone {
     width: max-content;
     max-width: calc(100% - 24px);
@@ -1432,22 +1561,8 @@ button.chat-name:hover {
     width: 100%;
     min-width: 0;
   }
-  .chat-panel {
-    position: absolute;
-    inset: 88px 8px 84px 8px;
-    width: auto;
-    margin: 0;
-    z-index: 20;
-  }
   .call-top .name-chip .muted {
     display: none;
-  }
-  .controls {
-    gap: 6px;
-  }
-  .controls .icon-btn {
-    width: 44px;
-    height: 44px;
   }
   .popover {
     position: fixed;
@@ -1459,23 +1574,8 @@ button.chat-name:hover {
 }
 
 @media (max-width: 480px) {
-  .controls {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    justify-items: center;
-    gap: 8px 4px;
-    padding: 10px 8px calc(12px + env(safe-area-inset-bottom));
-  }
-  .controls .icon-btn.leave {
-    grid-column: 4;
-    margin-left: 0;
-    width: 52px;
-  }
-  .chat-panel {
-    bottom: calc(126px + env(safe-area-inset-bottom));
-  }
   .toast {
-    bottom: calc(132px + env(safe-area-inset-bottom));
+    bottom: calc(84px + env(safe-area-inset-bottom));
   }
 }
 
@@ -1950,8 +2050,35 @@ button.chat-name:hover {
   mask: url('/lol.png') center / contain no-repeat;
 }
 
-.lol-panel {
-  width: 348px;
+/* The League card floats over the stage without resizing it. */
+.call-body > .lol-panel {
+  position: absolute;
+  inset: 8px 8px auto auto;
+  z-index: 30;
+  width: 320px;
+  max-height: calc(100% - 16px);
+  margin: 0;
+  box-shadow: 0 16px 48px #00000080;
+}
+@media (max-width: 860px) {
+  .call-body .chat-stack {
+    position: absolute;
+    inset: auto auto 8px 8px;
+    width: min(340px, calc(100% - 16px));
+    max-height: 45%;
+    margin: 0;
+    align-items: flex-start;
+  }
+  .call-body > .lol-panel {
+    inset: 8px 8px auto auto;
+    width: min(320px, calc(100% - 16px));
+    max-height: calc(100% - 16px);
+  }
+}
+.lol-matchups {
+  flex: none;
+  padding: 10px 12px;
+  background: var(--bg-2);
 }
 
 .roulette-backdrop {
@@ -2360,7 +2487,7 @@ button.chat-name:hover {
   padding: 1px 3px;
   border-top-left-radius: 6px;
   background: var(--k);
-  color: #111214;
+  color: var(--accent-ink);
   font-size: 11px;
   font-weight: 800;
   text-align: center;
@@ -2372,7 +2499,7 @@ button.chat-name:hover {
   font-size: 18px;
 }
 .lol-skill.k-Q {
-  --k: #e8ff5a;
+  --k: var(--accent);
 }
 .lol-skill.k-W {
   --k: #56b4e9;
@@ -2436,7 +2563,7 @@ button.chat-name:hover {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #0b0c0d;
+  background: var(--bg);
 }
 .lol-shards {
   margin-left: 6px;

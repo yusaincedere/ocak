@@ -21,6 +21,7 @@ import {
   type ReactNode,
 } from 'react';
 import { translate, useT } from '../i18n';
+import { useNarrow } from '../narrow';
 import { colorFor } from '../presence';
 import { sounds } from '../sounds';
 import { useStore } from '../store';
@@ -405,6 +406,8 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
   // Going quiet: the frame and the box fade out of the way of the game, new lines still show for
   // a moment. Anything in progress keeps it awake. Timed from when a line got here, not from its
   // timestamp, since that comes from the sender's clock.
+  // In a narrow window the chat sits under the people rather than over them: nothing to get out of the way of.
+  const canGoQuiet = quietWhenIdle && !useNarrow();
   const [hovered, setHovered] = useState(false);
   const [typing, setTyping] = useState(false);
   const [quiet, setQuiet] = useState(false);
@@ -412,7 +415,7 @@ export function ChatPanel({ chat, title, collapsed, unread, onToggle, onClose, a
   const firstSeen = useRef(new Map<string, number>());
   const quietNow = useRef(false);
   for (const m of chat.items) if (!firstSeen.current.has(m.id)) firstSeen.current.set(m.id, Date.now());
-  const awake = !quietWhenIdle || collapsed || hovered || typing || picking || dragging || !!viewing || awayFromLatest || !!text.trim() || chat.sending || chat.sendFailed;
+  const awake = !canGoQuiet || collapsed || hovered || typing || picking || dragging || !!viewing || awayFromLatest || !!text.trim() || chat.sending || chat.sendFailed;
   useEffect(() => {
     if (awake) {
       quietNow.current = false;

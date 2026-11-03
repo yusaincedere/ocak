@@ -15,6 +15,16 @@ export const usesPushToTalk = (p: Participant) => p.attributes?.[PTT] === '1';
 /** Someone's profile picture; only same-origin pictures from our server are accepted. */
 export const avatarOf = (p: Participant): AvatarPick | null => parsePick(p.attributes?.[AVATAR]);
 
+export type PersonState = 'deafened' | 'micOff' | 'silenced' | 'ptt';
+
+/** What to say about someone in the voice room; the one that matters most when several apply. */
+export function personState(p: { deafened: boolean; micOff: boolean; silencedForMe: boolean; ptt: boolean }): PersonState | null {
+  if (p.deafened) return 'deafened';
+  if (p.micOff) return 'micOff';
+  if (p.silencedForMe) return 'silenced';
+  return p.ptt ? 'ptt' : null;
+}
+
 /** Someone's Riot account ("Name#TAG|tr1" in the attribute). */
 export function riotOf(p: Participant): { riotId: string; platform: string } | null {
   const m = p.attributes?.[RIOT]?.match(/^(.{3,16}#[^\s#|]{2,5})(?:\|([a-z]{2,4}\d?))?$/u);
