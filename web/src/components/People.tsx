@@ -3,9 +3,10 @@ import type { Participant } from 'livekit-client';
 import { useState, type CSSProperties } from 'react';
 import { cropStyle, type AvatarPick } from '../avatar';
 import { useT } from '../i18n';
-import { avatarOf, colorFor, deviceOf, initials, isDeafened, personState, usesPushToTalk } from '../presence';
+import { avatarOf, colorFor, nameStyleOf, deviceOf, initials, isDeafened, personState, usesPushToTalk } from '../presence';
 import { useStore } from '../store';
 import { HeadphonesOff, MicOff, VolumeOff } from './Icons';
+import { StyledName } from './StyledName';
 import { usePersonMenu } from './VolumeMenu';
 
 /** What's going on with someone's sound, whoever is looking. */
@@ -58,9 +59,17 @@ export function AvatarPhoto({ pick }: { pick: AvatarPick }) {
 
 function PersonName({ participant }: { participant: Participant }) {
   const t = useT();
+  // Pasted name styles show here (call tiles and the voice strip) and nowhere else.
+  const myStyle = useStore((s) => s.nameStyle);
+  const myName = useStore((s) => s.name);
+  const style = participant.isLocal ? myStyle : nameStyleOf(participant);
+  // your own tile follows a rename right away (with its style), not when the call next redraws
+  const name = (participant.isLocal && myName) || participant.name || participant.identity;
   return (
     <span className="person-name">
-      <span className="person-name-text">{participant.name || participant.identity}</span>
+      <span className="person-name-text">
+        <StyledName name={name} style={style} />
+      </span>
       {participant.isScreenShareEnabled && <span className="live-tag">{t('call.live')}</span>}
     </span>
   );

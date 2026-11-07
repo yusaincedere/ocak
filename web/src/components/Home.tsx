@@ -8,8 +8,11 @@ import { parseJoinInput, roomLink } from '../links';
 import { colorFor, initials } from '../presence';
 import { useStore } from '../store';
 import { AvatarDialog, AvatarPicker } from './AvatarPicker';
-import { Copy, Pencil, Wolf, X } from './Icons';
+import { Copy, Pencil, Sparkles, Wolf, X } from './Icons';
+import { NameStyleDialog, NameStyleGrid } from './NameStylePicker';
 import { AvatarPhoto } from './People';
+import { StyledName, useNamePaste } from './StyledName';
+import type { NameStyle } from '../name-style';
 
 const ago = (t: number) => {
   const m = Math.round((Date.now() - t) / 60000);
@@ -32,11 +35,15 @@ function NameStep() {
   const [value, setValue] = useState('');
   const [picking, setPicking] = useState(false);
   const hasPictures = useStore((s) => (s.serverConfig?.avatarGenders.length ?? 0) > 0);
+  const paste = useNamePaste(value, setValue);
+  const [preset, setPreset] = useState<string | null>(null);
 
   const finish = () => {
     const n = value.trim();
     saveName(n);
     useStore.getState().setName(n);
+    if (paste.style) useStore.getState().setNameStyle(paste.style);
+    else useStore.getState().setNamePreset(preset);
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -76,8 +83,19 @@ function NameStep() {
           onChange={(e) => setValue(e.target.value)}
           placeholder={t('home.namePlaceholder')}
           maxLength={32}
+          onPaste={paste.onPaste}
           autoFocus
         />
+        {paste.style ? (
+          <PastedStylePreview name={value.trim()} style={paste.style} onClear={paste.clear} />
+        ) : (
+          value.trim() && (
+            <>
+              <p className="muted small center">{t('name.chooseStyle')}</p>
+              <NameStyleGrid name={value} selected={preset} onPick={setPreset} />
+            </>
+          )
+        )}
         <button className="btn primary big" disabled={!value.trim()}>
           {t('home.continue')}
         </button>
@@ -339,23 +357,42 @@ export function NameChip({ onRename }: { onRename?: (name: string) => void }) {
     <div className="me">
       <MyAvatarButton />
       <NameButton onRename={onRename} />
+      <NameStyleButton />
     </div>
+  );
+}
+
+function NameStyleButton() {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className="icon-btn small name-style-btn" title={t('name.chooseStyle')} aria-label={t('name.chooseStyle')} onClick={() => setOpen(true)}>
+        <Sparkles size={15} />
+      </button>
+      {open && <NameStyleDialog onClose={() => setOpen(false)} />}
+    </>
   );
 }
 
 function NameButton({ onRename }: { onRename?: (name: string) => void }) {
   const t = useT();
   const name = useStore((s) => s.name) ?? '';
+  const nameStyle = useStore((s) => s.nameStyle);
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
+  const paste = useNamePaste(value, setValue, nameStyle);
 
   const commit = () => {
     const n = value.trim();
     setEditing(false);
-    if (!n || n === name) return setValue(name);
-    saveName(n);
-    useStore.getState().setName(n);
-    onRename?.(n);
+    if (!n) return setValue(name);
+    if (n !== name) {
+      saveName(n);
+      useStore.getState().setName(n);
+      onRename?.(n);
+    }
+    if (paste.changed) useStore.getState().setNameStyle(paste.style);
   };
 
   if (editing)
@@ -370,11 +407,17 @@ function NameButton({ onRename }: { onRename?: (name: string) => void }) {
         <input
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onPaste={paste.onPaste}
           onBlur={commit}
           onKeyDown={(e) => e.key === 'Escape' && (setValue(name), setEditing(false))}
           maxLength={32}
           autoFocus
         />
+        {paste.style && (
+          <span className="name-chip-preview" aria-hidden>
+            <StyledName name={value.trim()} style={paste.style} />
+          </span>
+        )}
       </form>
     );
 
@@ -384,11 +427,25 @@ function NameButton({ onRename }: { onRename?: (name: string) => void }) {
       title={t('home.changeName')}
       onClick={() => {
         setValue(name);
+        paste.reset(nameStyle);
         setEditing(true);
       }}
     >
       <span className="muted">{t('home.youAre')}</span> <strong>{name}</strong> <Pencil size={13} />
     </button>
+  );
+}
+
+/** Under the first-visit name field: how the pasted name will look in calls. */
+function PastedStylePreview({ name, style, onClear }: { name: string; style: NameStyle | null; onClear: () => void }) {
+  const t = useT();
+  if (!style) return <p className="muted small center">{t('name.pasteHint')}</p>;
+  return (
+    <div className="name-preview">
+      <span className="muted small">{t('name.preview')}</span>
+      <span className="name-preview-text"><StyledName name={name} style={style} /></span>
+      <button type="button" className="btn subtle small-btn" onClick={onClear}>{t('name.removeStyle')}</button>
+    </div>
   );
 }
 

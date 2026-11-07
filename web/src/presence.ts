@@ -2,6 +2,7 @@
 // (nothing is stored on the server; they disappear when you leave).
 import type { LocalParticipant, Participant } from 'livekit-client';
 import { parsePick, serializePick, type AvatarPick } from './avatar';
+import { parseNameStyle, serializeNameStyle, type NameStyle } from './name-style';
 
 const DEAFENED = 'ocak.deafened';
 /** Push-to-talk users are "muted" between key presses; don't show them as muted. */
@@ -9,11 +10,15 @@ const PTT = 'ocak.ptt';
 const AVATAR = 'ocak.avatar';
 /** Riot ID ("Name#TAG"), so post-game cards know who in the game is one of us. */
 const RIOT = 'ocak.riot';
+/** Look of a pasted name (validated again by everyone who shows it). */
+const NAME_STYLE = 'ocak.nameStyle';
 
 export const isDeafened = (p: Participant) => p.attributes?.[DEAFENED] === '1';
 export const usesPushToTalk = (p: Participant) => p.attributes?.[PTT] === '1';
 /** Someone's profile picture; only same-origin pictures from our server are accepted. */
 export const avatarOf = (p: Participant): AvatarPick | null => parsePick(p.attributes?.[AVATAR]);
+
+export const nameStyleOf = (p: Participant): NameStyle | null => parseNameStyle(p.attributes?.[NAME_STYLE], p.name);
 
 export type PersonState = 'deafened' | 'micOff' | 'silenced' | 'ptt';
 
@@ -36,12 +41,19 @@ export const riotIdOf = (p: Participant) => riotOf(p)?.riotId ?? null;
 
 export function setPresence(
   local: LocalParticipant,
-  presence: { deafened?: boolean; ptt?: boolean; avatar?: AvatarPick | null; riot?: { riotId: string; platform: string } | null },
+  presence: {
+    deafened?: boolean;
+    ptt?: boolean;
+    avatar?: AvatarPick | null;
+    riot?: { riotId: string; platform: string } | null;
+    nameStyle?: NameStyle | null;
+  },
 ) {
   const attrs: Record<string, string> = {};
   if (presence.deafened !== undefined) attrs[DEAFENED] = presence.deafened ? '1' : '';
   if (presence.ptt !== undefined) attrs[PTT] = presence.ptt ? '1' : '';
   if (presence.avatar !== undefined) attrs[AVATAR] = presence.avatar ? serializePick(presence.avatar) : '';
+  if (presence.nameStyle !== undefined) attrs[NAME_STYLE] = serializeNameStyle(presence.nameStyle);
   if (presence.riot !== undefined) attrs[RIOT] = presence.riot ? `${presence.riot.riotId}|${presence.riot.platform}` : '';
   return local.setAttributes(attrs).catch(() => {});
 }

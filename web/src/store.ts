@@ -3,8 +3,14 @@ import type { LolMeta, LolTier, ServerConfig } from '../../server/src/protocol';
 import type { AvatarPick } from './avatar';
 import type { DesktopSettings } from './desktop-bridge';
 import { pushRecentEmoji } from './emoji';
+import { presetStyle } from './name-presets';
+import { styleText, type NameStyle } from './name-style';
 import {
   getAdminKey,
+  getNameStyle,
+  getNamePreset,
+  saveNamePreset,
+  saveNameStyle,
   setAdminKey as saveAdminKey,
   getAvatar,
   getChatSound,
@@ -43,6 +49,10 @@ export interface Call {
 interface State {
   lang: Lang;
   name: string | null;
+  /** look of a pasted name (null: plain) */
+  nameStyle: NameStyle | null;
+  /** chosen built-in name style (its look is in nameStyle) */
+  namePreset: string | null;
   avatar: AvatarPick | null;
   /** This device has the server's admin key. */
   isAdmin: boolean;
@@ -73,6 +83,9 @@ interface State {
 
   setLang: (l: Lang) => void;
   setName: (n: string) => void;
+  /** a pasted look (or none); replaces a built-in one */
+  setNameStyle: (s: NameStyle | null) => void;
+  setNamePreset: (id: string | null) => void;
   setAvatar: (a: AvatarPick | null) => void;
   setAdminKey: (key: string | null) => void;
   setServerConfig: (c: ServerConfig) => void;
@@ -95,6 +108,8 @@ interface State {
 export const useStore = create<State>((set) => ({
   lang: getLang(),
   name: getName(),
+  nameStyle: getNameStyle(),
+  namePreset: getNamePreset(),
   avatar: getAvatar(),
   isAdmin: !!getAdminKey(),
   serverConfig: null,
@@ -118,7 +133,25 @@ export const useStore = create<State>((set) => ({
     document.documentElement.lang = lang;
     set({ lang });
   },
-  setName: (name) => set({ name }),
+  // A built-in style follows the new name; a pasted one is dropped once it no longer spells it.
+  setName: (name) =>
+    set((s) => {
+      const nameStyle = s.namePreset ? presetStyle(s.namePreset, name) : s.nameStyle && styleText(s.nameStyle) === name ? s.nameStyle : null;
+      if (s.namePreset) saveNameStyle(nameStyle);
+      return { name, nameStyle };
+    }),
+  setNameStyle: (nameStyle) => {
+    saveNameStyle(nameStyle);
+    saveNamePreset(null);
+    set({ nameStyle, namePreset: null });
+  },
+  setNamePreset: (namePreset) =>
+    set((s) => {
+      const nameStyle = presetStyle(namePreset, s.name);
+      saveNameStyle(nameStyle);
+      saveNamePreset(nameStyle ? namePreset : null);
+      return { nameStyle, namePreset: nameStyle ? namePreset : null };
+    }),
   setAvatar: (avatar) => {
     saveAvatar(avatar);
     set({ avatar });

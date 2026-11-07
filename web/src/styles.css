@@ -3285,3 +3285,118 @@ button.chat-name:hover {
     flex-wrap: wrap;
   }
 }
+
+/* ---------- Pasted name styles ---------- */
+
+.styled-name {
+  /* the pasted look stays inside the name: no stacking or layout tricks reach the page */
+  isolation: isolate;
+}
+.styled-name-move {
+  display: inline-block; /* transforms only apply to boxes */
+  white-space: pre; /* a space with a box of its own keeps its width */
+}
+/* Room for a squash-and-stretch name or a framed one to overshoot its line a little instead of being cut off. */
+.person-name-text:has(.styled-name) {
+  overflow: clip;
+  overflow-clip-margin: 0.4em;
+}
+/* bouncing letters may hop up to one letter height */
+.person-name-text:has(.styled-name.moving) {
+  overflow-clip-margin: 1.2em;
+}
+.styled-name-layered {
+  position: relative;
+  display: inline-block;
+  white-space: pre; /* a spaced letter keeps its width */
+}
+.styled-name-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .styled-name span {
+    animation: none !important;
+  }
+}
+.name-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.name-preview-text {
+  font-size: 17px;
+  font-weight: 600;
+}
+.name-chip-preview {
+  margin-left: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------- built-in name styles ---------- */
+.modal.name-style-modal {
+  max-width: 640px;
+}
+.name-style-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 20px 20px;
+  overflow-y: auto;
+}
+.name-style-body > p {
+  margin: 0;
+}
+.name-styles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: 10px;
+}
+.name-style-card {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 22px 10px 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg-3);
+  color: var(--text);
+  cursor: pointer;
+  /* names move up to about one letter height: room for that, then clip */
+  overflow: hidden;
+}
+.name-style-card:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+}
+.name-style-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.name-style-sample {
+  max-width: 100%;
+  min-height: 1.6em;
+  padding: 2px 6px;
+  /* the whole name fits the card: smaller letters for longer names */
+  font-size: clamp(9px, calc(92cqw / (var(--chars, 8) * 0.72)), 17px);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.name-style-label {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.home-card .name-styles {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.name-style-btn {
+  flex: none;
+}
