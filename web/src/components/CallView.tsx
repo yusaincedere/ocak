@@ -167,7 +167,7 @@ function CallLayout({ call }: { call: Call }) {
         </span>
         <div className="spacer" />
         {call.admin && <EndForAll roomId={call.roomId} />}
-        <NameChip onRename={(n) => void localParticipant.setName(n).catch(() => {})} />
+        <NameChip />
         <IconButton label={t('common.settings')} onClick={() => setSettingsOpen(true)}>
           <Gear />
         </IconButton>
@@ -353,9 +353,11 @@ function AvatarSync() {
   const avatar = useStore((s) => s.avatar);
   const riot = useStore((s) => s.riot);
   const nameStyle = useStore((s) => s.nameStyle);
+  const name = useStore((s) => s.name);
+  // a rename and its new style go out together, in order (see setPresence)
   useEffect(() => {
-    if (connection === ConnectionState.Connected) void setPresence(localParticipant, { avatar, riot, nameStyle });
-  }, [connection, localParticipant, avatar, riot, nameStyle]);
+    if (connection === ConnectionState.Connected) void setPresence(localParticipant, { name, avatar, riot, nameStyle });
+  }, [connection, localParticipant, name, avatar, riot, nameStyle]);
   return null;
 }
 

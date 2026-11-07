@@ -1,9 +1,10 @@
 import { useIsSpeaking } from '@livekit/components-react';
 import type { Participant } from 'livekit-client';
-import { useState, type CSSProperties } from 'react';
+import { useParticipantAttributes, useParticipantInfo } from '@livekit/components-react';
+import { useMemo, useState, type CSSProperties } from 'react';
 import { cropStyle, type AvatarPick } from '../avatar';
 import { useT } from '../i18n';
-import { avatarOf, colorFor, nameStyleOf, deviceOf, initials, isDeafened, personState, usesPushToTalk } from '../presence';
+import { avatarOf, colorFor, nameStyleFrom, deviceOf, initials, isDeafened, personState, usesPushToTalk } from '../presence';
 import { useStore } from '../store';
 import { HeadphonesOff, MicOff, VolumeOff } from './Icons';
 import { StyledName } from './StyledName';
@@ -62,9 +63,14 @@ function PersonName({ participant }: { participant: Participant }) {
   // Pasted name styles show here (call tiles and the voice strip) and nowhere else.
   const myStyle = useStore((s) => s.nameStyle);
   const myName = useStore((s) => s.name);
-  const style = participant.isLocal ? myStyle : nameStyleOf(participant);
-  // your own tile follows a rename right away (with its style), not when the call next redraws
-  const name = (participant.isLocal && myName) || participant.name || participant.identity;
+  // Others' renames and style changes arrive as LiveKit events: listen for them here, so the tag
+  // updates at once instead of whenever the call next redraws.
+  const { name: liveName } = useParticipantInfo({ participant });
+  const { attributes } = useParticipantAttributes({ participant });
+  const theirStyle = useMemo(() => (participant.isLocal ? null : nameStyleFrom(attributes, liveName)), [participant.isLocal, attributes, liveName]);
+  const style = participant.isLocal ? myStyle : theirStyle;
+  // your own tag follows your store, which changes first
+  const name = (participant.isLocal && myName) || liveName || participant.identity;
   return (
     <span className="person-name">
       <span className="person-name-text">

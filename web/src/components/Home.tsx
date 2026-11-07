@@ -352,11 +352,11 @@ function MyAvatarButton() {
   );
 }
 
-export function NameChip({ onRename }: { onRename?: (name: string) => void }) {
+export function NameChip() {
   return (
     <div className="me">
       <MyAvatarButton />
-      <NameButton onRename={onRename} />
+      <NameButton />
       <NameStyleButton />
     </div>
   );
@@ -375,7 +375,7 @@ function NameStyleButton() {
   );
 }
 
-function NameButton({ onRename }: { onRename?: (name: string) => void }) {
+function NameButton() {
   const t = useT();
   const name = useStore((s) => s.name) ?? '';
   const nameStyle = useStore((s) => s.nameStyle);
@@ -389,8 +389,7 @@ function NameButton({ onRename }: { onRename?: (name: string) => void }) {
     if (!n) return setValue(name);
     if (n !== name) {
       saveName(n);
-      useStore.getState().setName(n);
-      onRename?.(n);
+      useStore.getState().setName(n); // in a call, the new name goes out with its style
     }
     if (paste.changed) useStore.getState().setNameStyle(paste.style);
   };

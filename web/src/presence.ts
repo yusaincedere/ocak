@@ -18,7 +18,9 @@ export const usesPushToTalk = (p: Participant) => p.attributes?.[PTT] === '1';
 /** Someone's profile picture; only same-origin pictures from our server are accepted. */
 export const avatarOf = (p: Participant): AvatarPick | null => parsePick(p.attributes?.[AVATAR]);
 
-export const nameStyleOf = (p: Participant): NameStyle | null => parseNameStyle(p.attributes?.[NAME_STYLE], p.name);
+/** Someone's name style from their attributes; only while it spells their current name. */
+export const nameStyleFrom = (attributes: Record<string, string> | undefined, name: string | undefined): NameStyle | null =>
+  parseNameStyle(attributes?.[NAME_STYLE], name);
 
 export type PersonState = 'deafened' | 'micOff' | 'silenced' | 'ptt';
 
@@ -39,9 +41,17 @@ export function riotOf(p: Participant): { riotId: string; platform: string } | n
 }
 export const riotIdOf = (p: Participant) => riotOf(p)?.riotId ?? null;
 
+/**
+ * LiveKit's setAttributes sends the name along too, the one last confirmed by the server: an
+ * attribute update that goes out while a rename is still on its way puts the old name back.
+ * So every update waits for the one before it, and a rename is confirmed before anything else.
+ */
+const queues = new WeakMap<LocalParticipant, Promise<void>>();
+
 export function setPresence(
   local: LocalParticipant,
   presence: {
+    name?: string | null;
     deafened?: boolean;
     ptt?: boolean;
     avatar?: AvatarPick | null;
@@ -55,7 +65,13 @@ export function setPresence(
   if (presence.avatar !== undefined) attrs[AVATAR] = presence.avatar ? serializePick(presence.avatar) : '';
   if (presence.nameStyle !== undefined) attrs[NAME_STYLE] = serializeNameStyle(presence.nameStyle);
   if (presence.riot !== undefined) attrs[RIOT] = presence.riot ? `${presence.riot.riotId}|${presence.riot.platform}` : '';
-  return local.setAttributes(attrs).catch(() => {});
+  const run = async () => {
+    if (presence.name && presence.name !== local.name) await local.setName(presence.name).catch(() => {});
+    if (Object.keys(attrs).length) await local.setAttributes(attrs).catch(() => {});
+  };
+  const next = (queues.get(local) ?? Promise.resolve()).then(run);
+  queues.set(local, next);
+  return next;
 }
 
 /** The device part of an identity ("<deviceId>:<suffix>"), so a person keeps their color across calls. */
