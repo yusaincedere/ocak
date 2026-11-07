@@ -36,6 +36,11 @@ export interface JoinResult {
 
 // Nobody in a call can tell who is an admin: only the admin's own call token says so.
 
+/** Who is in the calls of rooms you have the password for, by room id (only rooms with someone in them). */
+export interface RoomsPresence {
+  rooms: Record<string, string[]>;
+}
+
 /** Someone in a call right now, as the admin dashboard sees them. */
 export interface AdminPerson {
   identity: string;

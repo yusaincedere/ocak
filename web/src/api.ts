@@ -9,6 +9,7 @@ import type {
   LolMatchSummary,
   LolMeta,
   RandomAvatar,
+  RoomsPresence,
   ServerConfig,
 } from '../../server/src/protocol';
 import { getAdminKey } from './identity';
@@ -74,6 +75,8 @@ export const api = {
     request<CreatedRoom>('POST', '/api/rooms', { ...(createCode ? { createCode } : {}), lang }),
   joinRoom: (id: string, b: { password: string; name: string; deviceId: string }) =>
     request<JoinResult>('POST', `/api/rooms/${encodeURIComponent(id)}/join`, b),
+  /** Who is in the calls of these rooms (only rooms whose password is right). */
+  roomsPresence: (rooms: { id: string; password: string }[]) => request<RoomsPresence>('POST', '/api/rooms/presence', { rooms }),
   randomAvatar: (gender: Gender) => request<RandomAvatar>('POST', '/api/avatars/random', { gender }),
 
   admin: {

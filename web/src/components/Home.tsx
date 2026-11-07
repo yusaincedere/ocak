@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react';
-import { ApiError } from '../api';
+import { api, ApiError } from '../api';
 import { joinCall, startCall } from '../call';
 import { desktop } from '../desktop-bridge';
 import { deviceId, forgetRoom, recentRooms, setCreateCode, setName as saveName, type RecentRoom } from '../identity';
@@ -106,6 +106,35 @@ function NameStep() {
   );
 }
 
+/** Who is in the call of each recent room, kept fresh while the page is visible. */
+function useRoomsPresence(rooms: RecentRoom[]): Record<string, string[]> {
+  const [inCall, setInCall] = useState<Record<string, string[]>>({});
+  const key = rooms.map((r) => `${r.id}:${r.password}`).join(',');
+  useEffect(() => {
+    if (!rooms.length) return setInCall({});
+    let stopped = false;
+    const check = () => {
+      if (document.visibilityState !== 'visible') return;
+      api
+        .roomsPresence(rooms.map(({ id, password }) => ({ id, password })))
+        .then((res) => !stopped && setInCall(res.rooms))
+        .catch(() => {}); // an older server, or offline: just show nothing
+    };
+    check();
+    const timer = setInterval(check, 15_000);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [key]);
+  return inCall;
+}
+
+/** "Mert, Ayşe +2" */
+const peopleLine = (names: string[]) => names.slice(0, 2).join(', ') + (names.length > 2 ? ` +${names.length - 2}` : '');
+
 function Lobby({ invite }: { invite: { id: string; password: string | null } | null }) {
   const t = useT();
   const [busy, setBusy] = useState<'start' | 'join' | null>(null);
@@ -115,6 +144,7 @@ function Lobby({ invite }: { invite: { id: string; password: string | null } | n
   const [joinText, setJoinText] = useState(invite ? invite.id : '');
   const [password, setPassword] = useState(invite?.password ?? '');
   const [recent, setRecent] = useState<RecentRoom[]>(recentRooms);
+  const inCall = useRoomsPresence(recent);
   const autoJoined = useRef(false);
 
   const parsed = parseJoinInput(joinText);
@@ -245,7 +275,13 @@ function Lobby({ invite }: { invite: { id: string; password: string | null } | n
               <div key={r.id} className="recent-row">
                 <button className="recent-join" onClick={() => void join(r.id, r.password)} disabled={busy !== null}>
                   <span className="room-name">{r.id}</span>
-                  <span className="muted small">{ago(r.lastUsed)}</span>
+                  {inCall[r.id] ? (
+                    <span className="recent-people small" title={inCall[r.id]!.join(', ')}>
+                      {peopleLine(inCall[r.id]!)}
+                    </span>
+                  ) : (
+                    <span className="muted small">{ago(r.lastUsed)}</span>
+                  )}
                 </button>
                 <CopyButton text={roomLink(r.id, r.password)} title={t('home.copyInvite')} />
                 <button

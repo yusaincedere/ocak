@@ -362,6 +362,25 @@ a {
 .recent-join:hover {
   background: var(--bg-hover);
 }
+/* someone is in that call right now: a quiet green line instead of "4 hours ago" */
+.recent-people {
+  min-width: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ok);
+}
+.recent-people::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 1px;
+}
 
 /* ---------- Call ---------- */
 

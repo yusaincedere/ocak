@@ -9,6 +9,7 @@ import { avatarRoutes } from './routes/avatars.js';
 import { downloadRoutes } from './routes/downloads.js';
 import { lolRoutes } from './routes/lol.js';
 import type { RiotClient } from './lol/riot.js';
+import { presenceRoutes } from './routes/presence.js';
 import { roomRoutes } from './routes/rooms.js';
 
 /** Builds the HTTP app without starting it (used by index.ts and the tests). */
@@ -29,6 +30,7 @@ export async function buildApp({
   // Per-route limits (see routes/rooms.ts). Tests switch them off to make many requests quickly.
   if (rateLimits) await app.register(rateLimit, { global: false });
   await app.register(roomRoutes);
+  await app.register(presenceRoutes(control));
   await app.register(adminRoutes(control));
   await app.register(downloadRoutes);
   await app.register(avatarRoutes);
