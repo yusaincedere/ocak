@@ -1,4 +1,5 @@
-// Tiny synthesized UI sounds (no audio files) for call and message events.
+// Tiny synthesized UI sounds for call and message events, and the door knock an admin can send.
+import knockUrl from './assets/door-knock.m4a?url';
 
 let ctx: AudioContext | null = null;
 
@@ -38,3 +39,33 @@ export const sounds = {
   message: () => tone([740, 1110], 0.07, 0.07, 'triangle'),
   privateMessage: () => tone([659, 880, 659], 0.085, 0.075, 'sine'),
 };
+
+/** Volume of the door knock: a quarter of the recording's, so it's subtle (peaks ~-14 dB). */
+const KNOCK_VOLUME = 0.25;
+let knockBuffer: Promise<AudioBuffer> | null = null;
+
+/** Someone knocking on a door (a binaural recording: on headphones it sounds like it's in the room). */
+export function playKnock() {
+  try {
+    ctx ??= new AudioContext();
+    if (ctx.state === 'suspended') void ctx.resume();
+    const audio = ctx;
+    knockBuffer ??= fetch(knockUrl)
+      .then((res) => res.arrayBuffer())
+      .then((bytes) => audio.decodeAudioData(bytes));
+    knockBuffer
+      .then((buffer) => {
+        const source = audio.createBufferSource();
+        const gain = audio.createGain();
+        source.buffer = buffer;
+        gain.gain.value = KNOCK_VOLUME;
+        source.connect(gain).connect(audio.destination);
+        source.start();
+      })
+      .catch(() => {
+        knockBuffer = null; // try loading again next time
+      });
+  } catch {
+    /* audio not available */
+  }
+}

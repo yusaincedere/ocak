@@ -376,5 +376,7 @@
   "admin.minutes": "{n} min",
   "admin.normalVoice": "Normal voice",
   "admin.childVoiceOn": "{name} has a child voice for {minutes} min.",
-  "admin.childVoiceOff": "{name} has their own voice again."
+  "admin.childVoiceOff": "{name} has their own voice again.",
+  "admin.knock": "Knock on their door",
+  "admin.knocked": "Only {name} heard a knock on the door."
 }

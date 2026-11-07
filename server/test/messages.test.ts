@@ -13,7 +13,7 @@ process.env.CREATE_CODE = '';
 process.env.WEB_DIST = '/nonexistent';
 process.env.NODE_ENV = 'test';
 
-const control: CallControl = { people: async () => new Map(), mute: async () => false, kick: async () => false, end: async () => {}, setVoice: async () => false };
+const control: CallControl = { people: async () => new Map(), mute: async () => false, kick: async () => false, end: async () => {}, knock: async () => false, setVoice: async () => false };
 
 let app: FastifyInstance;
 before(async () => {

@@ -110,7 +110,7 @@ export const adminRoutes = (control: CallControl) =>
       return { ok: true };
     });
 
-    for (const action of ['mute', 'kick'] as const) {
+    for (const action of ['mute', 'kick', 'knock'] as const) {
       app.post(`/api/admin/rooms/:id/people/:identity/${action}`, limited, async (req, reply) => {
         const { id, identity } = req.params as { id: string; identity: string };
         const room = findRoom(id);

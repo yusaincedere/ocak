@@ -34,6 +34,10 @@ const control: CallControl = {
   async end(roomId) {
     log.push(`end ${roomId}`);
   },
+  async knock(roomId, identity) {
+    log.push(`knock ${roomId} ${identity}`);
+    return !!calls.get(roomId)?.some((p) => p.identity === identity);
+  },
   async setVoice(roomId, identity, value) {
     log.push(`voice ${roomId} ${identity} ${value}`);
     return !!calls.get(roomId)?.some((p) => p.identity === identity);
@@ -167,10 +171,10 @@ describe('managing rooms', () => {
     assert.equal(join.statusCode, 404);
   });
 
-  test('mute and kick reach LiveKit, and need the key', async () => {
+  test('mute, kick and knock reach LiveKit, and need the key', async () => {
     const room = await createRoom();
     calls.set(room.id, [{ identity: 'abcdefgh:x1', name: 'Mert', joinedAt: 1, micOn: true }]);
-    for (const action of ['mute', 'kick']) {
+    for (const action of ['mute', 'kick', 'knock']) {
       const url = `/api/admin/rooms/${room.id}/people/${encodeURIComponent('abcdefgh:x1')}/${action}`;
       assert.equal((await app.inject({ method: 'POST', url })).statusCode, 403);
       assert.equal((await app.inject({ method: 'POST', url, headers: KEY })).statusCode, 200);

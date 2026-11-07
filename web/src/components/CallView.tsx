@@ -20,7 +20,7 @@ import { roomLink } from '../links';
 import { assignColors, deviceOf, resetColors, setPresence } from '../presence';
 import { sounds } from '../sounds';
 import { useStore, type Call } from '../store';
-import { CallAudio, MicSync } from './CallAudio';
+import { CallAudio, KnockListener, MicSync } from './CallAudio';
 import { ChatPanel, useCallChat, useChatSound } from './Chat';
 import { usePrivateChats } from './PrivateChat';
 import { DesktopIntegration, usePushToTalk } from './DesktopIntegration';
@@ -85,6 +85,7 @@ export function CallView({ call }: { call: Call }) {
     >
       <CallAudio />
       <MicSync />
+      <KnockListener />
       <DesktopIntegration roomId={call.roomId} />
       <CallSounds />
       <AvatarSync />

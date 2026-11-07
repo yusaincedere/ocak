@@ -1,4 +1,4 @@
-import { AccessToken, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
+import { AccessToken, DataPacket_Kind, RoomServiceClient, TrackSource } from 'livekit-server-sdk';
 import { config } from './config.js';
 import type { AdminPerson } from './protocol.js';
 
@@ -39,9 +39,14 @@ export interface CallControl {
   kick(roomId: string, identity: string): Promise<boolean>;
   /** Disconnects everyone in the call. */
   end(roomId: string): Promise<void>;
+  /** Plays a door knock to this one person only (nobody else hears it). False if they aren't in the call. */
+  knock(roomId: string, identity: string): Promise<boolean>;
   /** Sets (or with '' clears) the voice-effect attribute on someone. False if they aren't in the call. */
   setVoice(roomId: string, identity: string, value: string): Promise<boolean>;
 }
+
+/** Topic of the server's message that makes one person's app play a door knock (see web CallView). */
+export const KNOCK_TOPIC = 'ocak.knock';
 
 /** The participant attribute a person's app reads to change their own voice (see web presence.ts). */
 export const VOICE_ATTRIBUTE = 'ocak.voice';
@@ -98,6 +103,15 @@ export function livekitControl(): CallControl {
         if (isNotFound(err)) return false;
         throw err;
       }
+    },
+
+    async knock(roomId, identity) {
+      if (!(await participants(roomId)).some((p) => p.identity === identity)) return false;
+      await client.sendData(livekitRoom(roomId), new Uint8Array([1]), DataPacket_Kind.RELIABLE, {
+        destinationIdentities: [identity],
+        topic: KNOCK_TOPIC,
+      });
+      return true;
     },
 
     async setVoice(roomId, identity, value) {

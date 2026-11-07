@@ -86,19 +86,20 @@ function NameStep() {
           onPaste={paste.onPaste}
           autoFocus
         />
+        {/* right under the name, so it never ends up below the styles */}
+        <button className="btn primary big" disabled={!value.trim()}>
+          {t('home.continue')}
+        </button>
         {paste.style ? (
           <PastedStylePreview name={value.trim()} style={paste.style} onClear={paste.clear} />
         ) : (
           value.trim() && (
-            <>
+            <div className="name-step-styles">
               <p className="muted small center">{t('name.chooseStyle')}</p>
               <NameStyleGrid name={value} selected={preset} onPick={setPreset} />
-            </>
+            </div>
           )
         )}
-        <button className="btn primary big" disabled={!value.trim()}>
-          {t('home.continue')}
-        </button>
         <p className="muted small center">{t('home.noAccount')}</p>
         <LanguageSwitch />
       </form>

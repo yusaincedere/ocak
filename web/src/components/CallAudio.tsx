@@ -1,11 +1,15 @@
-import { AudioTrack, useLocalParticipant, useParticipantAttributes, useTracks } from '@livekit/components-react';
-import { Track, type LocalAudioTrack } from 'livekit-client';
+import { AudioTrack, useLocalParticipant, useParticipantAttributes, useRoomContext, useTracks } from '@livekit/components-react';
+import { RoomEvent, Track, type DataPacket_Kind, type LocalAudioTrack, type RemoteParticipant } from 'livekit-client';
 import { useEffect, useState } from 'react';
 import { translate } from '../i18n';
 import { MicChain, type MicOptions } from '../mic';
 import { AudioNotAllowedYet } from '../noise';
 import { deviceOf, voiceEffectOf } from '../presence';
+import { playKnock } from '../sounds';
 import { useStore } from '../store';
+
+/** Topic of the server's door-knock message (server livekit.ts). */
+const KNOCK_TOPIC = 'ocak.knock';
 
 /**
  * Plays everyone else's audio (voice and shared-screen sound), each at the volume you
@@ -93,4 +97,22 @@ function useVoiceEffect(): MicOptions['voice'] {
     return () => clearTimeout(timer);
   }, [until]);
   return effect?.effect ?? null;
+}
+
+/**
+ * A door knock an admin sent to just you: played as if someone were at your door. Only the server
+ * can send it (a message from another participant on that topic is ignored).
+ */
+export function KnockListener() {
+  const room = useRoomContext();
+  useEffect(() => {
+    const onData = (_payload: Uint8Array, from?: RemoteParticipant, _kind?: DataPacket_Kind, topic?: string) => {
+      if (topic === KNOCK_TOPIC && !from && !useStore.getState().deafened) playKnock();
+    };
+    room.on(RoomEvent.DataReceived, onData);
+    return () => {
+      room.off(RoomEvent.DataReceived, onData);
+    };
+  }, [room]);
+  return null;
 }

@@ -25,7 +25,7 @@ const fake = (down = false): CallControl => ({
   mute: async () => false,
   kick: async () => false,
   end: async () => {},
-  setVoice: async () => false,
+  knock: async () => false, setVoice: async () => false,
 });
 
 let app: FastifyInstance;

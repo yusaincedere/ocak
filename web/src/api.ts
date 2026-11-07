@@ -105,6 +105,9 @@ export const api = {
         `/api/admin/rooms/${encodeURIComponent(id)}/people/${encodeURIComponent(identity)}/voice`,
         { voice, ...(minutes ? { minutes } : {}) },
       ),
+    /** A door knock that only this person hears. */
+    knock: (id: string, identity: string) =>
+      request<{ ok: true }>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/people/${encodeURIComponent(identity)}/knock`),
     kick: (id: string, identity: string) =>
       request<{ ok: true }>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/people/${encodeURIComponent(identity)}/kick`),
   },

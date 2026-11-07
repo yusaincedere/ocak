@@ -167,11 +167,12 @@ export function VolumeMenu({ onMessage }: { onMessage: (device: string, name: st
 /** Admins: turn off someone's mic or remove them from the call, for everyone. */
 function AdminActions({ roomId, target }: { roomId: string; target: Target }) {
   const t = useT();
-  const act = (action: 'mute' | 'kick') => {
+  const done = { mute: 'admin.muted', kick: 'admin.kicked', knock: 'admin.knocked' } as const;
+  const act = (action: 'mute' | 'kick' | 'knock') => {
     if (action === 'kick' && !window.confirm(t('admin.kickConfirm', { name: target.name }))) return;
     useMenu.getState().close();
     api.admin[action](roomId, target.identity)
-      .then(() => useStore.getState().setNotice(t(action === 'mute' ? 'admin.muted' : 'admin.kicked', { name: target.name })))
+      .then(() => useStore.getState().setNotice(t(done[action], { name: target.name })))
       .catch((err: unknown) => useStore.getState().setNotice(err instanceof Error ? err.message : translate('common.somethingWrong')));
   };
   return (
@@ -179,6 +180,9 @@ function AdminActions({ roomId, target }: { roomId: string; target: Target }) {
       <span className="label">{t('admin.badge')}</span>
       <button type="button" className="btn subtle small-btn" onClick={() => act('mute')}>
         {t('admin.muteMic')}
+      </button>
+      <button type="button" className="btn subtle small-btn" onClick={() => act('knock')}>
+        {t('admin.knock')}
       </button>
       <VoiceActions roomId={roomId} target={target} />
       <button type="button" className="btn subtle small-btn danger" onClick={() => act('kick')}>

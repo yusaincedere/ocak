@@ -376,5 +376,7 @@
   "admin.minutes": "{n} dk",
   "admin.normalVoice": "Normal ses",
   "admin.childVoiceOn": "{name} {minutes} dk boyunca çocuk sesiyle konuşuyor.",
-  "admin.childVoiceOff": "{name} artık kendi sesiyle konuşuyor."
+  "admin.childVoiceOff": "{name} artık kendi sesiyle konuşuyor.",
+  "admin.knock": "Kapısını çal",
+  "admin.knocked": "Kapı sesini sadece {name} duydu."
 }
