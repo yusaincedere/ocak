@@ -1,12 +1,15 @@
 // Everything about "you" lives in this browser / desktop app. No accounts.
 import { DEFAULT_LOL_RANK, isLolTier, type Gender, type LolTier } from '../../server/src/protocol';
 import { parsePick, serializePick, type AvatarPick } from './avatar';
+import { parseNameStyle, serializeNameStyle, type NameStyle } from './name-style';
 
 // If local storage is cleared you just pick your name again.
 
 const KEY = {
   device: 'ocak.device',
   name: 'ocak.name',
+  nameStyle: 'ocak.nameStyle',
+  namePreset: 'ocak.namePreset',
   rooms: 'ocak.rooms',
   createCode: 'ocak.createCode',
   adminKey: 'ocak.adminKey',
@@ -57,6 +60,13 @@ export function deviceId(): string {
 
 export const getName = () => read(KEY.name);
 export const setName = (name: string) => write(KEY.name, name.trim().slice(0, 32));
+
+/** The look of a pasted name; only valid while the name is still exactly that text. */
+export const getNameStyle = (): NameStyle | null => parseNameStyle(read(KEY.nameStyle), getName());
+export const saveNameStyle = (s: NameStyle | null) => write(KEY.nameStyle, s ? serializeNameStyle(s) : null);
+/** Which built-in name style is chosen (it follows the name when it changes). */
+export const getNamePreset = () => read(KEY.namePreset);
+export const saveNamePreset = (id: string | null) => write(KEY.namePreset, id);
 
 /** UI language; Turkish unless the user picked English. */
 export const getLang = (): 'tr' | 'en' => (read(KEY.lang) === 'en' ? 'en' : 'tr');

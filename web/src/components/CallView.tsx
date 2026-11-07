@@ -352,9 +352,10 @@ function AvatarSync() {
   const connection = useConnectionState();
   const avatar = useStore((s) => s.avatar);
   const riot = useStore((s) => s.riot);
+  const nameStyle = useStore((s) => s.nameStyle);
   useEffect(() => {
-    if (connection === ConnectionState.Connected) void setPresence(localParticipant, { avatar, riot });
-  }, [connection, localParticipant, avatar, riot]);
+    if (connection === ConnectionState.Connected) void setPresence(localParticipant, { avatar, riot, nameStyle });
+  }, [connection, localParticipant, avatar, riot, nameStyle]);
   return null;
 }
 

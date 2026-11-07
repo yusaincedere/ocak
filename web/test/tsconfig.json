@@ -5,5 +5,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": [".", "../src/links.ts", "../src/avatar.ts"]
+  "include": [".", "../src/links.ts", "../src/avatar.ts", "../src/name-style.ts", "../src/name-paste.ts"]
 }
