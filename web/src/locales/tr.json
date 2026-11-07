@@ -371,5 +371,10 @@
   "namePreset.heatmap": "Isı haritası",
   "namePreset.lava": "Lav lambası",
   "namePreset.gradientframe": "Renkli çerçeve",
-  "namePreset.rotator": "Döner"
+  "namePreset.rotator": "Döner",
+  "admin.childVoice": "Çocuk sesi süresi",
+  "admin.minutes": "{n} dk",
+  "admin.normalVoice": "Normal ses",
+  "admin.childVoiceOn": "{name} {minutes} dk boyunca çocuk sesiyle konuşuyor.",
+  "admin.childVoiceOff": "{name} artık kendi sesiyle konuşuyor."
 }

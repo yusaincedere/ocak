@@ -371,5 +371,10 @@
   "namePreset.heatmap": "Heatmap",
   "namePreset.lava": "Lava lamp",
   "namePreset.gradientframe": "Gradient frame",
-  "namePreset.rotator": "Rotator"
+  "namePreset.rotator": "Rotator",
+  "admin.childVoice": "Child voice for",
+  "admin.minutes": "{n} min",
+  "admin.normalVoice": "Normal voice",
+  "admin.childVoiceOn": "{name} has a child voice for {minutes} min.",
+  "admin.childVoiceOff": "{name} has their own voice again."
 }

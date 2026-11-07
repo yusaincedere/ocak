@@ -30,6 +30,12 @@ const findRoom = (raw: string) =>
 
 const notFound = { error: "That room doesn't exist (or expired)", code: 'not_found' };
 
+const voiceBody = z.object({
+  /** null: back to their own voice */
+  voice: z.enum(['child']).nullable(),
+  minutes: z.number().int().min(1).max(60).default(5),
+});
+
 export const adminRoutes = (control: CallControl) =>
   async function (app: FastifyInstance) {
     // Generous enough for a dashboard that refreshes, tight enough to make guessing the key hopeless.
@@ -114,4 +120,34 @@ export const adminRoutes = (control: CallControl) =>
         return { ok: true };
       });
     }
+
+    // Changes someone's voice for a few minutes: their own app does it to their microphone, so
+    // everyone hears it. It ends on its own (their app checks the time; we also clear it).
+    const voiceTimers = new Map<string, NodeJS.Timeout>();
+    app.post('/api/admin/rooms/:id/people/:identity/voice', limited, async (req, reply) => {
+      const { id, identity } = req.params as { id: string; identity: string };
+      const body = voiceBody.safeParse(req.body);
+      if (!body.success) return reply.code(400).send({ error: 'Invalid request' });
+      const room = findRoom(id);
+      if (!room) return reply.code(404).send(notFound);
+      const until = Date.now() + body.data.minutes * 60_000;
+      const value = body.data.voice ? `${body.data.voice}:${until}` : '';
+      const done = await control.setVoice(room.id, identity, value);
+      if (!done) return reply.code(404).send({ error: 'That person is not in the call', code: 'not_in_call' });
+      const key = `${room.id} ${identity}`;
+      clearTimeout(voiceTimers.get(key));
+      voiceTimers.delete(key);
+      if (body.data.voice) {
+        const timer = setTimeout(() => {
+          voiceTimers.delete(key);
+          control.setVoice(room.id, identity, '').catch(() => {}); // they may have left
+        }, until - Date.now());
+        timer.unref();
+        voiceTimers.set(key, timer);
+      }
+      return { ok: true, until: body.data.voice ? until : null };
+    });
+    app.addHook('onClose', async () => {
+      for (const timer of voiceTimers.values()) clearTimeout(timer);
+    });
   };

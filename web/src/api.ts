@@ -98,6 +98,13 @@ export const api = {
     deleteRoom: (id: string) => request<{ ok: true }>('DELETE', `/api/admin/rooms/${encodeURIComponent(id)}`),
     mute: (id: string, identity: string) =>
       request<{ ok: true }>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/people/${encodeURIComponent(identity)}/mute`),
+    /** Changes someone's voice for some minutes (null: back to their own voice). */
+    voice: (id: string, identity: string, voice: 'child' | null, minutes?: number) =>
+      request<{ ok: true; until: number | null }>(
+        'POST',
+        `/api/admin/rooms/${encodeURIComponent(id)}/people/${encodeURIComponent(identity)}/voice`,
+        { voice, ...(minutes ? { minutes } : {}) },
+      ),
     kick: (id: string, identity: string) =>
       request<{ ok: true }>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/people/${encodeURIComponent(identity)}/kick`),
   },

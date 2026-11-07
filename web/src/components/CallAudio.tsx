@@ -1,9 +1,10 @@
-import { AudioTrack, useLocalParticipant, useTracks } from '@livekit/components-react';
+import { AudioTrack, useLocalParticipant, useParticipantAttributes, useTracks } from '@livekit/components-react';
 import { Track, type LocalAudioTrack } from 'livekit-client';
 import { useEffect, useState } from 'react';
 import { translate } from '../i18n';
-import { AudioNotAllowedYet, NOISE_PROCESSOR, NoiseReduction } from '../noise';
-import { deviceOf } from '../presence';
+import { MicChain, type MicOptions } from '../mic';
+import { AudioNotAllowedYet } from '../noise';
+import { deviceOf, voiceEffectOf } from '../presence';
 import { useStore } from '../store';
 
 /**
@@ -33,9 +34,13 @@ export function CallAudio() {
   );
 }
 
-/** Keeps noise reduction on your microphone in line with the setting. */
-export function NoiseReductionSync() {
-  const enabled = useStore((s) => s.noiseReduction);
+/**
+ * Keeps your microphone's processing in line: noise reduction (your setting) and a voice effect
+ * (set on you by an admin, for a while). Both run in one chain, see mic.ts.
+ */
+export function MicSync() {
+  const noise = useStore((s) => s.noiseReduction);
+  const voice = useVoiceEffect();
   const { microphoneTrack } = useLocalParticipant();
   const track = microphoneTrack?.track as LocalAudioTrack | undefined;
   // Bumped after a click when the browser wasn't ready to process audio yet.
@@ -45,11 +50,14 @@ export function NoiseReductionSync() {
     if (!track) return;
     let cancelled = false;
     let onGesture: (() => void) | null = null;
+    const opts: MicOptions = { noise, voice };
     void (async () => {
-      const active = track.getProcessor()?.name === NOISE_PROCESSOR;
+      const current = track.getProcessor();
       try {
-        if (enabled && !active) await track.setProcessor(new NoiseReduction());
-        else if (!enabled && active) await track.stopProcessor();
+        if (!noise && !voice) {
+          if (current) await track.stopProcessor();
+        } else if (current instanceof MicChain) await current.update(opts);
+        else await track.setProcessor(new MicChain(opts));
       } catch (err) {
         if (cancelled) return;
         if (err instanceof AudioNotAllowedYet) {
@@ -57,8 +65,8 @@ export function NoiseReductionSync() {
           onGesture = () => setRetry((n) => n + 1);
           window.addEventListener('pointerdown', onGesture, { once: true });
         } else {
-          console.warn('Noise reduction unavailable', err);
-          useStore.getState().setNotice(translate('audio.noiseUnavailable'));
+          console.warn('Microphone processing unavailable', err);
+          if (noise) useStore.getState().setNotice(translate('audio.noiseUnavailable'));
         }
       }
     })();
@@ -66,7 +74,23 @@ export function NoiseReductionSync() {
       cancelled = true;
       if (onGesture) window.removeEventListener('pointerdown', onGesture);
     };
-  }, [track, enabled, retry]);
+  }, [track, noise, voice, retry]);
 
   return null;
+}
+
+/** The voice effect an admin set on you, until it runs out. */
+function useVoiceEffect(): MicOptions['voice'] {
+  const { localParticipant } = useLocalParticipant();
+  const { attributes } = useParticipantAttributes({ participant: localParticipant });
+  const effect = voiceEffectOf(attributes);
+  const [, setTick] = useState(0);
+  const until = effect?.until ?? 0;
+  useEffect(() => {
+    if (!until) return;
+    // re-check when it runs out (the server also clears it then)
+    const timer = setTimeout(() => setTick((n) => n + 1), Math.max(0, until - Date.now()) + 50);
+    return () => clearTimeout(timer);
+  }, [until]);
+  return effect?.effect ?? null;
 }

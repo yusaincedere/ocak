@@ -39,7 +39,12 @@ export interface CallControl {
   kick(roomId: string, identity: string): Promise<boolean>;
   /** Disconnects everyone in the call. */
   end(roomId: string): Promise<void>;
+  /** Sets (or with '' clears) the voice-effect attribute on someone. False if they aren't in the call. */
+  setVoice(roomId: string, identity: string, value: string): Promise<boolean>;
 }
+
+/** The participant attribute a person's app reads to change their own voice (see web presence.ts). */
+export const VOICE_ATTRIBUTE = 'ocak.voice';
 
 const isNotFound = (err: unknown) => (err as { status?: number })?.status === 404 || /not.?found/i.test(String(err));
 
@@ -88,6 +93,16 @@ export function livekitControl(): CallControl {
     async kick(roomId, identity) {
       try {
         await client.removeParticipant(livekitRoom(roomId), identity);
+        return true;
+      } catch (err) {
+        if (isNotFound(err)) return false;
+        throw err;
+      }
+    },
+
+    async setVoice(roomId, identity, value) {
+      try {
+        await client.updateParticipant(livekitRoom(roomId), identity, { attributes: { [VOICE_ATTRIBUTE]: value } });
         return true;
       } catch (err) {
         if (isNotFound(err)) return false;

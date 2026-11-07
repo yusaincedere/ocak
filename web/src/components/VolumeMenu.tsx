@@ -1,9 +1,10 @@
+import { useRoomContext } from '@livekit/components-react';
 import type { Participant } from 'livekit-client';
 import { api } from '../api';
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 import { create } from 'zustand';
 import { translate, useT } from '../i18n';
-import { deviceOf } from '../presence';
+import { deviceOf, voiceEffectOf } from '../presence';
 import { useStore } from '../store';
 import { Chat, Volume, VolumeOff } from './Icons';
 
@@ -179,9 +180,43 @@ function AdminActions({ roomId, target }: { roomId: string; target: Target }) {
       <button type="button" className="btn subtle small-btn" onClick={() => act('mute')}>
         {t('admin.muteMic')}
       </button>
+      <VoiceActions roomId={roomId} target={target} />
       <button type="button" className="btn subtle small-btn danger" onClick={() => act('kick')}>
         {t('admin.kickFromCall')}
       </button>
+    </div>
+  );
+}
+
+/** A child voice on someone for a few minutes (their own app changes their mic; everyone hears it). */
+function VoiceActions({ roomId, target }: { roomId: string; target: Target }) {
+  const t = useT();
+  const room = useRoomContext();
+  const active = voiceEffectOf(room.getParticipantByIdentity(target.identity)?.attributes);
+  const set = (minutes: number | null) => {
+    useMenu.getState().close();
+    api.admin
+      .voice(roomId, target.identity, minutes ? 'child' : null, minutes ?? undefined)
+      .then(() =>
+        useStore.getState().setNotice(minutes ? t('admin.childVoiceOn', { name: target.name, minutes }) : t('admin.childVoiceOff', { name: target.name })),
+      )
+      .catch((err: unknown) => useStore.getState().setNotice(err instanceof Error ? err.message : translate('common.somethingWrong')));
+  };
+  return (
+    <div className="volume-voice">
+      <span className="muted small">{t('admin.childVoice')}</span>
+      <div className="volume-voice-row">
+        {[1, 5, 15].map((m) => (
+          <button key={m} type="button" className="btn subtle small-btn" onClick={() => set(m)}>
+            {t('admin.minutes', { n: m })}
+          </button>
+        ))}
+        {active && (
+          <button type="button" className="btn subtle small-btn" onClick={() => set(null)}>
+            {t('admin.normalVoice')}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

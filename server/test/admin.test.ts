@@ -34,6 +34,10 @@ const control: CallControl = {
   async end(roomId) {
     log.push(`end ${roomId}`);
   },
+  async setVoice(roomId, identity, value) {
+    log.push(`voice ${roomId} ${identity} ${value}`);
+    return !!calls.get(roomId)?.some((p) => p.identity === identity);
+  },
 };
 
 let app: FastifyInstance;
@@ -173,6 +177,37 @@ describe('managing rooms', () => {
       assert.ok(log.includes(`${action} ${room.id} abcdefgh:x1`));
     }
     const gone = await app.inject({ method: 'POST', url: `/api/admin/rooms/${room.id}/people/nobody/kick`, headers: KEY });
+    assert.equal(gone.statusCode, 404);
+  });
+});
+
+describe('changing voices', () => {
+  test('sets a child voice for a few minutes, and back; needs the key', async () => {
+    const room = await createRoom();
+    calls.set(room.id, [{ identity: 'abcdefgh:x1', name: 'Mert', joinedAt: 1, micOn: true }]);
+    const url = `/api/admin/rooms/${room.id}/people/${encodeURIComponent('abcdefgh:x1')}/voice`;
+
+    assert.equal((await app.inject({ method: 'POST', url, payload: { voice: 'child', minutes: 5 } })).statusCode, 403);
+
+    const before = Date.now();
+    const res = await app.inject({ method: 'POST', url, headers: KEY, payload: { voice: 'child', minutes: 5 } });
+    assert.equal(res.statusCode, 200);
+    const { until } = res.json();
+    assert.ok(until >= before + 5 * 60_000 && until <= Date.now() + 5 * 60_000);
+    assert.ok(log.includes(`voice ${room.id} abcdefgh:x1 child:${until}`));
+
+    const back = await app.inject({ method: 'POST', url, headers: KEY, payload: { voice: null } });
+    assert.equal(back.statusCode, 200);
+    assert.equal(log.at(-1), `voice ${room.id} abcdefgh:x1 `);
+  });
+
+  test('refuses other effects, silly durations and people not in the call', async () => {
+    const room = await createRoom();
+    calls.set(room.id, [{ identity: 'abcdefgh:x1', name: 'Mert', joinedAt: 1, micOn: true }]);
+    const url = `/api/admin/rooms/${room.id}/people/${encodeURIComponent('abcdefgh:x1')}/voice`;
+    for (const payload of [{ voice: 'robot' }, { voice: 'child', minutes: 0 }, { voice: 'child', minutes: 61 }, {}])
+      assert.equal((await app.inject({ method: 'POST', url, headers: KEY, payload })).statusCode, 400);
+    const gone = await app.inject({ method: 'POST', url: `/api/admin/rooms/${room.id}/people/nobody/voice`, headers: KEY, payload: { voice: 'child' } });
     assert.equal(gone.statusCode, 404);
   });
 });

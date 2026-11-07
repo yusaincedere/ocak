@@ -12,6 +12,15 @@ const AVATAR = 'ocak.avatar';
 const RIOT = 'ocak.riot';
 /** Look of a pasted name (validated again by everyone who shows it). */
 const NAME_STYLE = 'ocak.nameStyle';
+/** Set by the server when an admin changes someone's voice: "child:<until, ms since epoch>". */
+export const VOICE = 'ocak.voice';
+
+/** A voice effect an admin put on this person, while it lasts. */
+export function voiceEffectOf(attributes: Record<string, string> | undefined, now = Date.now()): { effect: 'child'; until: number } | null {
+  const m = /^child:(\d+)$/.exec(attributes?.[VOICE] ?? '');
+  const until = m ? Number(m[1]) : 0;
+  return until > now ? { effect: 'child', until } : null;
+}
 
 export const isDeafened = (p: Participant) => p.attributes?.[DEAFENED] === '1';
 export const usesPushToTalk = (p: Participant) => p.attributes?.[PTT] === '1';

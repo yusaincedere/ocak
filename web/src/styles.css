@@ -3296,6 +3296,20 @@ button.chat-name:hover {
   align-self: stretch;
   justify-content: center;
 }
+.volume-voice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.volume-voice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.volume-voice-row .btn.small-btn {
+  flex: 1;
+  justify-content: center;
+}
 @media (max-width: 560px) {
   .admin-stats strong {
     font-size: 20px;
