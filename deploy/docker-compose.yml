@@ -17,6 +17,8 @@ services:
       PORT: 3000
       DB_PATH: /data/ocak.db
       DOWNLOADS_DIR: /downloads
+      # Admin tools talk to LiveKit directly on this machine.
+      LIVEKIT_API_URL: http://127.0.0.1:7880
     volumes:
       - app-data:/data
       # Drop Ocak-Setup-x.y.z.exe / Ocak-x.y.z.dmg in deploy/downloads to offer them in the app.

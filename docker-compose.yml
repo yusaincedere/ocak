@@ -19,6 +19,8 @@ services:
       LIVEKIT_PUBLIC_URL: ws://localhost:7880
       LIVEKIT_API_KEY: devkey
       LIVEKIT_API_SECRET: secret
+      LIVEKIT_API_URL: http://livekit:7880 # admin tools, from inside the container
+      ADMIN_KEY: ${ADMIN_KEY:-}
       # Use the same optional League configuration as native local development.
       RIOT_API_KEY: ${RIOT_API_KEY:-}
       LOL_PLATFORMS: ${LOL_PLATFORMS:-tr1,euw1,kr,na1}

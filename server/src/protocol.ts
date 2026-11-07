@@ -7,6 +7,8 @@ export interface ServerConfig {
   createCodeRequired: boolean;
   /** Which kinds of random profile picture this server can hand out (empty: no pictures). */
   avatarGenders: Gender[];
+  /** An admin key is configured (the /admin page can be used). */
+  adminEnabled: boolean;
 }
 
 /** A random profile picture. `src` is a same-origin path served by this server. */
@@ -28,6 +30,35 @@ export interface JoinResult {
   /** LiveKit access token */
   token: string;
   roomId: string;
+}
+
+// ---------- Admin ----------
+
+// Nobody in a call can tell who is an admin: only the admin's own call token says so.
+
+/** Someone in a call right now, as the admin dashboard sees them. */
+export interface AdminPerson {
+  identity: string;
+  name: string;
+  /** ms since epoch */
+  joinedAt: number;
+  micOn: boolean;
+}
+
+export interface AdminRoom {
+  id: string;
+  createdAt: number;
+  lastUsedAt: number;
+  /** when the room is deleted if nobody joins it again */
+  expiresAt: number;
+  /** who is in the call now */
+  people: AdminPerson[];
+}
+
+export interface AdminRooms {
+  rooms: AdminRoom[];
+  /** false when LiveKit couldn't be reached: `people` is then empty for every room */
+  live: boolean;
 }
 
 /** Sent over the LiveKit data channel on this topic for remote-control (future). */

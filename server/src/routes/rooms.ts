@@ -1,10 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import { AccessToken } from 'livekit-server-sdk';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { db, type RoomRow } from '../db.js';
+import { callToken } from '../livekit.js';
 import type { CreatedRoom, JoinResult, ServerConfig } from '../protocol.js';
 import { hashPassword, newRoomId, newRoomPassword, passwordMatches, roomIdCandidates } from '../rooms.js';
+import { isAdminRequest } from './admin.js';
 
 const createBody = z.object({
   createCode: z.string().max(200).optional(),
@@ -30,6 +31,7 @@ export async function roomRoutes(app: FastifyInstance) {
     async (): Promise<ServerConfig> => ({
       createCodeRequired: config.createCode !== null,
       avatarGenders: (['male', 'female'] as const).filter((g) => config.avatarApis[g]),
+      adminEnabled: config.adminKey !== null,
     }),
   );
 
@@ -76,23 +78,9 @@ export async function roomRoutes(app: FastifyInstance) {
 
       db.prepare('UPDATE rooms SET last_used_at = ? WHERE id = ?').run(Date.now(), id);
 
-      // Identity must be unique per connection: the same device may join from two tabs.
-      const suffix = Math.random().toString(36).slice(2, 6);
-      const at = new AccessToken(config.livekit.apiKey, config.livekit.apiSecret, {
-        identity: `${body.data.deviceId}:${suffix}`,
-        name: body.data.name,
-        ttl: '12h',
-      });
-      at.addGrant({
-        room: `room-${id}`,
-        roomJoin: true,
-        canPublish: true,
-        canSubscribe: true,
-        canPublishData: true, // chat + (later) remote control
-        canUpdateOwnMetadata: true, // renaming yourself mid-call
-      });
-
-      return { url: config.livekit.publicUrl, token: await at.toJwt(), roomId: id };
+      // An admin joining with the password still gets admin powers in the call.
+      const token = await callToken({ roomId: id, name: body.data.name, deviceId: body.data.deviceId, admin: isAdminRequest(req) });
+      return { url: config.livekit.publicUrl, token, roomId: id };
     },
   );
 }

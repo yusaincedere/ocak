@@ -34,6 +34,13 @@ export const config = {
   createCode: env.CREATE_CODE?.trim() || null,
 
   /**
+   * Optional. Whoever knows this key is an admin: they see every room, can join any room
+   * without its password, and can mute or remove people and end calls. Entered once at /admin
+   * and remembered by that browser. Still no accounts.
+   */
+  adminKey: env.ADMIN_KEY?.trim() || null,
+
+  /**
    * Optional profile pictures. Each is an API that returns JSON with a random image URL
    * (e.g. {"url": "https://…", "dimensions": {"width": 1094, "height": 1825}}).
    * With both set, people pick a gender when they choose their name; with neither, no pictures.
@@ -70,6 +77,11 @@ export const config = {
   livekit: {
     /** The URL browsers/desktop clients connect to, e.g. wss://rtc.example.com */
     publicUrl: env.LIVEKIT_PUBLIC_URL ?? 'ws://localhost:7880',
+    /**
+     * Where this server reaches LiveKit's API (admin tools: who is in a call, mute, remove).
+     * Defaults to the public URL over http(s).
+     */
+    apiUrl: (env.LIVEKIT_API_URL ?? env.LIVEKIT_PUBLIC_URL ?? 'ws://localhost:7880').replace(/^ws/, 'http'),
     apiKey: env.LIVEKIT_API_KEY ?? 'devkey',
     apiSecret: env.LIVEKIT_API_SECRET ?? 'secret',
   },
@@ -80,6 +92,7 @@ if (isProd) {
   if (config.livekit.apiKey === 'devkey' || config.livekit.apiSecret === 'secret')
     problems.push('LIVEKIT_API_KEY / LIVEKIT_API_SECRET are the dev defaults');
   if (config.livekit.apiSecret.length < 32) problems.push('LIVEKIT_API_SECRET must be at least 32 characters');
+  if (config.adminKey && config.adminKey.length < 16) problems.push('ADMIN_KEY must be at least 16 characters');
   if (problems.length) {
     console.error(`Refusing to start in production:\n - ${problems.join('\n - ')}`);
     process.exit(1);

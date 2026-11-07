@@ -3,6 +3,8 @@ import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import { config } from './config.js';
+import { livekitControl, type CallControl } from './livekit.js';
+import { adminRoutes } from './routes/admin.js';
 import { avatarRoutes } from './routes/avatars.js';
 import { downloadRoutes } from './routes/downloads.js';
 import { lolRoutes } from './routes/lol.js';
@@ -14,7 +16,8 @@ export async function buildApp({
   logger = true,
   rateLimits = true,
   riot = null,
-}: { logger?: boolean; rateLimits?: boolean; riot?: RiotClient | null } = {}) {
+  control = livekitControl(),
+}: { logger?: boolean; rateLimits?: boolean; riot?: RiotClient | null; control?: CallControl } = {}) {
   const app = Fastify({
     logger: logger ? { level: config.isProd ? 'info' : 'debug' } : false,
     // In production the app only listens on 127.0.0.1 behind Caddy, so X-Forwarded-For is trustworthy.
@@ -26,6 +29,7 @@ export async function buildApp({
   // Per-route limits (see routes/rooms.ts). Tests switch them off to make many requests quickly.
   if (rateLimits) await app.register(rateLimit, { global: false });
   await app.register(roomRoutes);
+  await app.register(adminRoutes(control));
   await app.register(downloadRoutes);
   await app.register(avatarRoutes);
   await app.register(lolRoutes(riot));

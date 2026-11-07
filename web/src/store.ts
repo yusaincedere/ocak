@@ -4,6 +4,8 @@ import type { AvatarPick } from './avatar';
 import type { DesktopSettings } from './desktop-bridge';
 import { pushRecentEmoji } from './emoji';
 import {
+  getAdminKey,
+  setAdminKey as saveAdminKey,
   getAvatar,
   getChatSound,
   getCallSound,
@@ -30,7 +32,10 @@ import { sounds } from './sounds';
 
 export interface Call {
   roomId: string;
-  password: string;
+  /** null when an admin joined without the password */
+  password: string | null;
+  /** our call token has admin powers (never shown to others) */
+  admin: boolean;
   url: string;
   token: string;
 }
@@ -39,6 +44,8 @@ interface State {
   lang: Lang;
   name: string | null;
   avatar: AvatarPick | null;
+  /** This device has the server's admin key. */
+  isAdmin: boolean;
   /** Loaded from /api/config at startup. */
   serverConfig: ServerConfig | null;
   call: Call | null;
@@ -67,6 +74,7 @@ interface State {
   setLang: (l: Lang) => void;
   setName: (n: string) => void;
   setAvatar: (a: AvatarPick | null) => void;
+  setAdminKey: (key: string | null) => void;
   setServerConfig: (c: ServerConfig) => void;
   setCall: (c: Call | null) => void;
   setChatDraft: (draft: string) => void;
@@ -88,6 +96,7 @@ export const useStore = create<State>((set) => ({
   lang: getLang(),
   name: getName(),
   avatar: getAvatar(),
+  isAdmin: !!getAdminKey(),
   serverConfig: null,
   call: null,
   chatDraft: '',
@@ -113,6 +122,10 @@ export const useStore = create<State>((set) => ({
   setAvatar: (avatar) => {
     saveAvatar(avatar);
     set({ avatar });
+  },
+  setAdminKey: (key) => {
+    saveAdminKey(key);
+    set({ isAdmin: !!key });
   },
   setServerConfig: (serverConfig) => set({ serverConfig }),
   setCall: (call) => set((s) => ({ call, chatDraft: call ? s.chatDraft : '', deafened: call ? s.deafened : false, pttActive: false })),

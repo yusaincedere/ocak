@@ -1,4 +1,5 @@
 import type {
+  AdminRooms,
   CreatedRoom,
   Gender,
   JoinResult,
@@ -10,6 +11,7 @@ import type {
   RandomAvatar,
   ServerConfig,
 } from '../../server/src/protocol';
+import { getAdminKey } from './identity';
 import { translate, type MessageKey } from './i18n';
 
 /** Server error codes → translated messages (the server's own text is English-only). */
@@ -24,6 +26,9 @@ const ERROR_KEYS: Record<string, MessageKey> = {
   riot_busy: 'lol.riotBusy',
   riot_down: 'lol.riotDown',
   no_avatars: 'avatar.failed',
+  admin_key: 'admin.wrongKey',
+  admin_off: 'admin.off',
+  not_in_call: 'admin.notInCall',
 };
 
 export class ApiError extends Error {
@@ -37,12 +42,16 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, adminKey = getAdminKey()): Promise<T> {
   let res: Response;
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['content-type'] = 'application/json';
+  // The admin key rides along on every request once saved: joining a room then comes with admin powers.
+  if (adminKey) headers['x-admin-key'] = adminKey;
   try {
     res = await fetch(path, {
       method,
-      headers: body === undefined ? {} : { 'content-type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -66,6 +75,21 @@ export const api = {
   joinRoom: (id: string, b: { password: string; name: string; deviceId: string }) =>
     request<JoinResult>('POST', `/api/rooms/${encodeURIComponent(id)}/join`, b),
   randomAvatar: (gender: Gender) => request<RandomAvatar>('POST', '/api/avatars/random', { gender }),
+
+  admin: {
+    /** Checks a key before it is saved. */
+    check: (key: string) => request<{ ok: true }>('GET', '/api/admin/check', undefined, key),
+    rooms: () => request<AdminRooms>('GET', '/api/admin/rooms'),
+    join: (id: string, b: { name: string; deviceId: string }) =>
+      request<JoinResult>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/join`, b),
+    newPassword: (id: string) => request<{ id: string; password: string }>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/password`),
+    endCall: (id: string) => request<{ ok: true }>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/end`),
+    deleteRoom: (id: string) => request<{ ok: true }>('DELETE', `/api/admin/rooms/${encodeURIComponent(id)}`),
+    mute: (id: string, identity: string) =>
+      request<{ ok: true }>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/people/${encodeURIComponent(identity)}/mute`),
+    kick: (id: string, identity: string) =>
+      request<{ ok: true }>('POST', `/api/admin/rooms/${encodeURIComponent(id)}/people/${encodeURIComponent(identity)}/kick`),
+  },
 
   lolMeta: (lang: LolLang, rank: LolTier) => request<LolMeta>('GET', `/api/lol/meta?lang=${lang}&rank=${rank}`),
   lolBuild: (champion: string, role: string | null, lang: LolLang, rank: LolTier) =>

@@ -8,6 +8,7 @@ import type { FastifyInstance } from 'fastify';
 // Configure before the server modules load (they read env at import time).
 process.env.DB_PATH = join(mkdtempSync(join(tmpdir(), 'ocak-test-')), 'test.db');
 process.env.CREATE_CODE = 'testcode';
+process.env.ADMIN_KEY = ''; // in case the local .env sets one
 process.env.WEB_DIST = '/nonexistent';
 process.env.NODE_ENV = 'test';
 process.env.DESKTOP_DOWNLOAD_URL = 'https://github.com/example/ocak/releases/latest/download/';
@@ -33,7 +34,7 @@ async function createRoom(lang?: 'tr' | 'en') {
 describe('config', () => {
   test('reports that a server code is required', async () => {
     const res = await app.inject('/api/config');
-    assert.deepEqual(res.json(), { createCodeRequired: true, avatarGenders: [] });
+    assert.deepEqual(res.json(), { createCodeRequired: true, avatarGenders: [], adminEnabled: false });
   });
 });
 

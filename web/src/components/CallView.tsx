@@ -7,11 +7,11 @@ import {
 } from '@livekit/components-react';
 import type { LolRole } from '../../../server/src/protocol';
 import { ChampionRoulette } from './ChampionRoulette';
-import { ConnectionState, RoomEvent } from 'livekit-client';
+import { ConnectionState, DisconnectReason, RoomEvent } from 'livekit-client';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { mediaErrorKey } from '../media-errors';
-import { ApiError } from '../api';
-import { joinCall, leaveCall, roomOptions } from '../call';
+import { api, ApiError } from '../api';
+import { leaveCall, rejoinCall, roomOptions } from '../call';
 import { desktop } from '../desktop-bridge';
 import { useLolMeta } from '../lol';
 import { useNarrow } from '../narrow';
@@ -48,7 +48,7 @@ export function CallView({ call }: { call: Call }) {
     setRetrying(true);
     setRetryError(null);
     try {
-      await joinCall(call.roomId, call.password);
+      await rejoinCall(call.roomId, call.password);
     } catch (err) {
       setRetryError(err instanceof ApiError ? err.message : translate('call.failed'));
       setRetrying(false);
@@ -66,9 +66,16 @@ export function CallView({ call }: { call: Call }) {
       audio={!ptt} // in push-to-talk mode DesktopIntegration publishes the mic muted
       video={false}
       options={roomOptions}
-      onDisconnected={() => {
+      onDisconnected={(reason) => {
         // Still "in" the call in our state = we didn't press leave.
-        if (useStore.getState().call?.token === call.token) setDisconnected(true);
+        if (useStore.getState().call?.token !== call.token) return;
+        // An admin removed us or ended the call: nothing to retry.
+        if (reason === DisconnectReason.PARTICIPANT_REMOVED || reason === DisconnectReason.ROOM_DELETED) {
+          leaveCall();
+          useStore.getState().setNotice(translate(reason === DisconnectReason.ROOM_DELETED ? 'admin.callEnded' : 'admin.youWereRemoved'));
+          return;
+        }
+        setDisconnected(true);
       }}
       onError={(err) => {
         // Errors after we pressed leave are just the connection closing.
@@ -153,12 +160,13 @@ function CallLayout({ call }: { call: Call }) {
         <div className="call-room">
           <Wolf size={22} className="call-mark" />
           <span className="room-name">{call.roomId}</span>
-          <InviteButton call={call} />
+          {call.password !== null && <InviteButton call={call} password={call.password} />}
         </div>
         <span className="call-status muted small">
           {status ?? t('call.inCall', { n: participants.length })}
         </span>
         <div className="spacer" />
+        {call.admin && <EndForAll roomId={call.roomId} />}
         <NameChip onRename={(n) => void localParticipant.setName(n).catch(() => {})} />
         <IconButton label={t('common.settings')} onClick={() => setSettingsOpen(true)}>
           <Gear />
@@ -268,12 +276,36 @@ function AloneHint({ call }: { call: Call }) {
   return (
     <div className="alone">
       <span>{t('call.alone')}</span>
-      <CopyButton text={roomLink(call.roomId, call.password)} title={t('home.copyInvite')} label={t('home.copyInvite')} />
+      {call.password !== null && (
+        <CopyButton text={roomLink(call.roomId, call.password)} title={t('home.copyInvite')} label={t('home.copyInvite')} />
+      )}
     </div>
   );
 }
 
-function InviteButton({ call }: { call: Call }) {
+/** Admins only: disconnects everyone (the room itself stays). */
+function EndForAll({ roomId }: { roomId: string }) {
+  const t = useT();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      className="btn small-btn danger"
+      disabled={busy}
+      onClick={() => {
+        if (!window.confirm(t('admin.endConfirm', { room: roomId }))) return;
+        setBusy(true);
+        api.admin
+          .endCall(roomId)
+          .catch((err: unknown) => useStore.getState().setNotice(err instanceof Error ? err.message : translate('common.somethingWrong')))
+          .finally(() => setBusy(false));
+      }}
+    >
+      {t('admin.endCall')}
+    </button>
+  );
+}
+
+function InviteButton({ call, password }: { call: Call; password: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const t = useT();
@@ -283,7 +315,7 @@ function InviteButton({ call }: { call: Call }) {
     window.addEventListener('mousedown', close);
     return () => window.removeEventListener('mousedown', close);
   }, [open]);
-  const link = roomLink(call.roomId, call.password);
+  const link = roomLink(call.roomId, password);
 
   return (
     <div className="invite" ref={ref}>
@@ -304,7 +336,7 @@ function InviteButton({ call }: { call: Call }) {
             </div>
             <div>
               <div className="label">{t('call.password')}</div>
-              <div className="mono big-mono">{call.password}</div>
+              <div className="mono big-mono">{password}</div>
             </div>
           </div>
           <p className="muted small">{t('call.inviteNote')}</p>

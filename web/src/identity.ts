@@ -9,6 +9,7 @@ const KEY = {
   name: 'ocak.name',
   rooms: 'ocak.rooms',
   createCode: 'ocak.createCode',
+  adminKey: 'ocak.adminKey',
   lang: 'ocak.lang',
   avatar: 'ocak.avatar',
   gender: 'ocak.gender',
@@ -133,6 +134,10 @@ export function getLolRank(): LolTier {
   return isLolTier(v) ? v : DEFAULT_LOL_RANK;
 }
 export const saveLolRank = (rank: LolTier) => write(KEY.lolRank, rank);
+
+/** The server's admin key, if this device was used to sign in at /admin. */
+export const getAdminKey = () => read(KEY.adminKey);
+export const setAdminKey = (key: string | null) => write(KEY.adminKey, key);
 
 export const getCreateCode = () => read(KEY.createCode);
 export const setCreateCode = (code: string | null) => write(KEY.createCode, code);

@@ -1,7 +1,8 @@
 import type { Participant } from 'livekit-client';
+import { api } from '../api';
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react';
 import { create } from 'zustand';
-import { useT } from '../i18n';
+import { translate, useT } from '../i18n';
 import { deviceOf } from '../presence';
 import { useStore } from '../store';
 import { Chat, Volume, VolumeOff } from './Icons';
@@ -11,6 +12,8 @@ import { Chat, Volume, VolumeOff } from './Icons';
 
 interface Target {
   device: string;
+  /** this connection, for the admin actions */
+  identity: string;
   name: string;
   x: number;
   y: number;
@@ -31,7 +34,7 @@ export function usePersonMenu(participant: Participant | undefined) {
   if (!participant || participant.isLocal) return {};
 
   const open = (x: number, y: number) =>
-    useMenu.getState().open({ device: deviceOf(participant.identity), name: participant.name || participant.identity, x, y });
+    useMenu.getState().open({ device: deviceOf(participant.identity), identity: participant.identity, name: participant.name || participant.identity, x, y });
   const cancel = () => {
     if (press.current) clearTimeout(press.current.timer);
     press.current = null;
@@ -67,6 +70,7 @@ export function VolumeMenu({ onMessage }: { onMessage: (device: string, name: st
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
   const beforeMute = useRef(1);
+  const roomId = useStore((s) => (s.call?.admin ? s.call.roomId : null));
 
   // Keep the popup on screen.
   useLayoutEffect(() => {
@@ -153,6 +157,30 @@ export function VolumeMenu({ onMessage }: { onMessage: (device: string, name: st
       >
         <Chat size={14} />
         {t('private.open')}
+      </button>
+      {roomId && <AdminActions roomId={roomId} target={target} />}
+    </div>
+  );
+}
+
+/** Admins: turn off someone's mic or remove them from the call, for everyone. */
+function AdminActions({ roomId, target }: { roomId: string; target: Target }) {
+  const t = useT();
+  const act = (action: 'mute' | 'kick') => {
+    if (action === 'kick' && !window.confirm(t('admin.kickConfirm', { name: target.name }))) return;
+    useMenu.getState().close();
+    api.admin[action](roomId, target.identity)
+      .then(() => useStore.getState().setNotice(t(action === 'mute' ? 'admin.muted' : 'admin.kicked', { name: target.name })))
+      .catch((err: unknown) => useStore.getState().setNotice(err instanceof Error ? err.message : translate('common.somethingWrong')));
+  };
+  return (
+    <div className="volume-admin">
+      <span className="label">{t('admin.badge')}</span>
+      <button type="button" className="btn subtle small-btn" onClick={() => act('mute')}>
+        {t('admin.muteMic')}
+      </button>
+      <button type="button" className="btn subtle small-btn danger" onClick={() => act('kick')}>
+        {t('admin.kickFromCall')}
       </button>
     </div>
   );

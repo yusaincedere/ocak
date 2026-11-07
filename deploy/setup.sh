@@ -22,6 +22,7 @@ if [[ ! -f .env ]]; then
 DOMAIN=${DOMAIN}
 RTC_DOMAIN=${RTC_DOMAIN}
 CREATE_CODE=${CREATE_CODE}
+ADMIN_KEY=$(rand 32)
 LIVEKIT_PUBLIC_URL=wss://${RTC_DOMAIN}
 LIVEKIT_API_KEY=API$(rand 12)
 LIVEKIT_API_SECRET=$(rand 48)
@@ -55,5 +56,6 @@ Next:
      BEFORE 'ufw enable', and allow any ports your other apps use, or you'll lock them out.
   3. Start:   docker compose up -d --build
   4. Open https://${DOMAIN}, pick a name, start a call and share the link.${CREATE_CODE:+
-     Server code for starting calls: ${CREATE_CODE}}
+     Server code for starting calls: ${CREATE_CODE}}${ADMIN_KEY:+
+  5. Admin dashboard: https://${DOMAIN}/admin   key: ${ADMIN_KEY}  (also in deploy/.env)}
 EOF

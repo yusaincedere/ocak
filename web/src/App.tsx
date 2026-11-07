@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AdminPage } from './components/AdminPage';
 import { CallView } from './components/CallView';
 import { useDesktopSettingsLoader } from './components/DesktopIntegration';
 import { DesktopSettings } from './components/DesktopSettings';
@@ -14,8 +15,13 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   // The invite in the URL (/r/<id>#<password>) is used once; after that you're back to a normal home screen.
   const [invite, setInvite] = useState(roomFromLocation);
+  // /admin is the admin dashboard; joining a call from it leaves it, leaving the call goes home.
+  const [adminPage, setAdminPage] = useState(() => location.pathname.replace(/\/+$/, '') === '/admin');
   useEffect(() => {
-    if (call) setInvite(null);
+    if (call) {
+      setInvite(null);
+      setAdminPage(false);
+    }
   }, [call]);
   useDesktopSettingsLoader();
   useEffect(() => {
@@ -28,8 +34,8 @@ export function App() {
 
   return (
     <>
-      {call ? <CallView call={call} /> : <Home invite={invite} />}
-      {!call && (
+      {call ? <CallView call={call} /> : adminPage ? <AdminPage /> : <Home invite={invite} />}
+      {!call && !adminPage && (
         <button className="icon-btn corner" title={t('common.settings')} aria-label={t('common.settings')} onClick={() => setSettingsOpen(true)}>
           <Gear />
         </button>
