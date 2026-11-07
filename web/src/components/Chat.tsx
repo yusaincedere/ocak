@@ -1,7 +1,7 @@
-// In-call chat: text and images, only between the people in the call. Nothing is stored on the
-// server: text goes over LiveKit's chat, images as LiveKit byte streams straight to the others,
-// and both are gone when the call ends. The panel is also what private chats show in
-// (see PrivateChat.tsx).
+// In-call chat: text and images. Text goes over LiveKit's chat and images as LiveKit byte streams
+// straight to the others. The group chat's text messages are also saved on the server for the
+// room, so they're still there next time; pictures, roulette results and private chats are not.
+// The panel is also what private chats show in (see PrivateChat.tsx).
 import { useChat, useRoomContext } from '@livekit/components-react';
 import type { ByteStreamReader, Participant, Room } from 'livekit-client';
 import { createPortal } from 'react-dom';
@@ -22,7 +22,9 @@ import {
 } from 'react';
 import { translate, useT } from '../i18n';
 import { useNarrow } from '../narrow';
-import { colorFor } from '../presence';
+import { api } from '../api';
+import { deviceId } from '../identity';
+import { colorFor, deviceOf } from '../presence';
 import { sounds } from '../sounds';
 import { useStore } from '../store';
 import { IconButton } from './VoiceControls';
@@ -57,6 +59,8 @@ export interface ChatItem {
   image?: { url: string | null; status: 'sending' | 'sent' | 'failed'; progress?: number };
   /** private chats: the device of the other person */
   thread?: string;
+  /** said before you joined (loaded from the room's saved chat): no sound, not unread */
+  history?: boolean;
 }
 
 /** What a chat panel shows and sends: the group chat and every private chat provide this. */
@@ -179,6 +183,12 @@ export function useCallChat(): ChatThread & { announceRoulette: (champion: strin
   const [sendFailed, setSendFailed] = useState(false);
   const sendingRef = useRef(false);
   const { add, urlFor } = held;
+  const call = useStore((s) => s.call);
+  const history = useSavedChat(call?.roomId, call?.token);
+  /** Keeps a message we sent in the room's saved chat (if that fails, it was still sent live). */
+  const keep = (m: { id: string; body: string }) => {
+    if (call) void api.chat.save(call.roomId, call.token, { ...m, name: room.localParticipant.name || undefined }).catch(() => {});
+  };
 
   // Pictures from the others.
   useEffect(() => {
@@ -222,8 +232,11 @@ export function useCallChat(): ChatThread & { announceRoulette: (champion: strin
       timestamp: m.timestamp,
       text: m.message,
     }));
-    return [...texts, ...held.items].sort((a, b) => a.timestamp - b.timestamp);
-  }, [chat.chatMessages, held.items]);
+    const live = [...texts, ...held.items];
+    const known = new Set(live.map((i) => i.id));
+    // saved messages we also saw live are shown once
+    return [...history.filter((h) => !known.has(h.id)), ...live].sort((a, b) => a.timestamp - b.timestamp);
+  }, [chat.chatMessages, held.items, history]);
 
   const sendText = async (text: string) => {
     const message = tidyMessage(text);
@@ -232,7 +245,8 @@ export function useCallChat(): ChatThread & { announceRoulette: (champion: strin
     setSending(true);
     setSendFailed(false);
     try {
-      await chat.send(message);
+      const sent = await chat.send(message);
+      keep({ id: sent.id, body: message });
       setDraft((current) => {
         const next = current === text ? '' : current;
         useStore.getState().setChatDraft(next);
@@ -261,6 +275,39 @@ export function useCallChat(): ChatThread & { announceRoulette: (champion: strin
 
   return { items, sendText, sendImage, announceRoulette, draft,
     setDraft: (text) => { setDraft(text); useStore.getState().setChatDraft(text); }, sending, sendFailed };
+}
+
+/** The room's saved group chat, loaded once when we join (older messages first). */
+function useSavedChat(roomId: string | undefined, token: string | undefined): ChatItem[] {
+  const room = useRoomContext();
+  const [items, setItems] = useState<ChatItem[]>([]);
+  useEffect(() => {
+    if (!roomId || !token) return;
+    let stopped = false;
+    const mine = deviceId();
+    api.chat
+      .load(roomId, token)
+      .then(({ messages }) => {
+        if (stopped) return;
+        setItems(
+          messages.map((m) => ({
+            id: m.id,
+            identity: m.identity,
+            from: room.getParticipantByIdentity(m.identity) ?? null,
+            name: m.name,
+            isLocal: deviceOf(m.identity) === mine,
+            timestamp: m.sentAt,
+            text: m.body,
+            history: true,
+          })),
+        );
+      })
+      .catch(() => {}); // an older server, or offline: the chat just starts empty
+    return () => {
+      stopped = true;
+    };
+  }, [room, roomId, token]);
+  return items;
 }
 
 /** Checks the type and size; big photos are scaled down (GIFs are sent as they are, to keep the animation). */

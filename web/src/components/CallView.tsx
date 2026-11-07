@@ -8,7 +8,7 @@ import {
 import type { LolRole } from '../../../server/src/protocol';
 import { ChampionRoulette } from './ChampionRoulette';
 import { ConnectionState, DisconnectReason, RoomEvent } from 'livekit-client';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { mediaErrorKey } from '../media-errors';
 import { api, ApiError } from '../api';
 import { leaveCall, rejoinCall, roomOptions } from '../call';
@@ -128,11 +128,13 @@ function CallLayout({ call }: { call: Call }) {
   const narrow = useNarrow();
 
   // Count unread chat while the panel is closed; a sound for messages from others.
-  useChatSound(chat.items, chatOpen);
+  // (messages from before you joined are neither new nor unread)
+  const liveChat = useMemo(() => chat.items.filter((m) => !m.history), [chat.items]);
+  useChatSound(liveChat, chatOpen);
   useEffect(() => {
-    if (chatOpen) setSeen(chat.items.length);
-  }, [chat.items, chatOpen]);
-  const unread = chatOpen ? 0 : chat.items.filter((m, i) => i >= seen && !m.isLocal).length;
+    if (chatOpen) setSeen(liveChat.length);
+  }, [liveChat, chatOpen]);
+  const unread = chatOpen ? 0 : liveChat.filter((m, i) => i >= seen && !m.isLocal).length;
 
   const status =
     connection === ConnectionState.Connecting

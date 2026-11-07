@@ -99,6 +99,7 @@ export const adminRoutes = (control: CallControl) =>
       const room = findRoom((req.params as { id: string }).id);
       if (!room) return reply.code(404).send(notFound);
       db.prepare('DELETE FROM rooms WHERE id = ?').run(room.id);
+      db.prepare('DELETE FROM messages WHERE room_id = ?').run(room.id);
       await control.end(room.id).catch((err: unknown) => req.log.warn({ err }, 'admin: could not end the call'));
       return { ok: true };
     });

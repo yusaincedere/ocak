@@ -9,6 +9,7 @@ import { avatarRoutes } from './routes/avatars.js';
 import { downloadRoutes } from './routes/downloads.js';
 import { lolRoutes } from './routes/lol.js';
 import type { RiotClient } from './lol/riot.js';
+import { messageRoutes } from './routes/messages.js';
 import { presenceRoutes } from './routes/presence.js';
 import { roomRoutes } from './routes/rooms.js';
 
@@ -31,6 +32,7 @@ export async function buildApp({
   if (rateLimits) await app.register(rateLimit, { global: false });
   await app.register(roomRoutes);
   await app.register(presenceRoutes(control));
+  await app.register(messageRoutes);
   await app.register(adminRoutes(control));
   await app.register(downloadRoutes);
   await app.register(avatarRoutes);

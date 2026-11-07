@@ -10,6 +10,7 @@ import type {
   LolMeta,
   RandomAvatar,
   RoomsPresence,
+  SavedMessage,
   ServerConfig,
 } from '../../server/src/protocol';
 import { getAdminKey } from './identity';
@@ -43,9 +44,9 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown, adminKey = getAdminKey()): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, adminKey = getAdminKey(), extra: Record<string, string> = {}): Promise<T> {
   let res: Response;
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...extra };
   if (body !== undefined) headers['content-type'] = 'application/json';
   // The admin key rides along on every request once saved: joining a room then comes with admin powers.
   if (adminKey) headers['x-admin-key'] = adminKey;
@@ -75,6 +76,13 @@ export const api = {
     request<CreatedRoom>('POST', '/api/rooms', { ...(createCode ? { createCode } : {}), lang }),
   joinRoom: (id: string, b: { password: string; name: string; deviceId: string }) =>
     request<JoinResult>('POST', `/api/rooms/${encodeURIComponent(id)}/join`, b),
+  /** A room's saved group chat; the call token shows we're in that call. */
+  chat: {
+    load: (roomId: string, token: string) =>
+      request<{ messages: SavedMessage[] }>('GET', `/api/rooms/${encodeURIComponent(roomId)}/messages`, undefined, undefined, { authorization: `Bearer ${token}` }),
+    save: (roomId: string, token: string, m: { id: string; body: string; name?: string }) =>
+      request<{ ok: true }>('POST', `/api/rooms/${encodeURIComponent(roomId)}/messages`, m, undefined, { authorization: `Bearer ${token}` }),
+  },
   /** Who is in the calls of these rooms (only rooms whose password is right). */
   roomsPresence: (rooms: { id: string; password: string }[]) => request<RoomsPresence>('POST', '/api/rooms/presence', { rooms }),
   randomAvatar: (gender: Gender) => request<RandomAvatar>('POST', '/api/avatars/random', { gender }),

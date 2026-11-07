@@ -36,6 +36,18 @@ export interface JoinResult {
 
 // Nobody in a call can tell who is an admin: only the admin's own call token says so.
 
+/** A saved text message of a room's group chat. */
+export interface SavedMessage {
+  id: string;
+  /** the sender's connection (device id + a suffix) */
+  identity: string;
+  /** their name when they sent it */
+  name: string;
+  body: string;
+  /** ms since epoch, as the server received it */
+  sentAt: number;
+}
+
 /** Who is in the calls of rooms you have the password for, by room id (only rooms with someone in them). */
 export interface RoomsPresence {
   rooms: Record<string, string[]>;
