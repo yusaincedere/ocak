@@ -3386,8 +3386,11 @@ button.chat-name:hover {
   margin: 0;
 }
 .name-styles {
+  position: relative; /* cards' offsetTop is measured from the list (see NameStyleGrid) */
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  /* every card the same, fixed height: a scrolling list never squeezes them */
+  grid-auto-rows: 92px;
   gap: 10px;
 }
 .name-style-card {
@@ -3395,14 +3398,16 @@ button.chat-name:hover {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   min-width: 0;
-  padding: 22px 10px 10px;
+  padding: 12px 10px 10px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--bg-3);
   color: var(--text);
   cursor: pointer;
+  scroll-snap-align: start;
   /* names move up to about one letter height: room for that, then clip */
   overflow: hidden;
 }
@@ -3430,17 +3435,31 @@ button.chat-name:hover {
 .home-card .name-styles {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
-/* the first-visit styles scroll in their own box, so the page stays short */
+/* the first-visit styles scroll in their own box, so the page stays short; the edges fade
+   where there is more to scroll to */
 .name-step-styles {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 .name-step-styles .name-styles {
-  max-height: min(42vh, 360px);
+  --fade-top: 0px;
+  --fade-bottom: 0px;
+  max-height: min(46vh, 340px);
   overflow-y: auto;
-  padding: 2px;
+  overscroll-behavior: contain;
+  scroll-snap-type: y proximity;
+  scroll-padding: 2px;
+  padding: 2px 4px 2px 2px;
   scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  mask-image: linear-gradient(to bottom, transparent, #000 var(--fade-top), #000 calc(100% - var(--fade-bottom)), transparent);
+}
+.name-step-styles .name-styles.more-above {
+  --fade-top: 28px;
+}
+.name-step-styles .name-styles.more-below {
+  --fade-bottom: 36px;
 }
 .name-style-btn {
   flex: none;
