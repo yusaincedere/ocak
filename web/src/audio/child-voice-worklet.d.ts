@@ -6,6 +6,8 @@ export declare class ChildVoice {
   /** current pitch and formant factors */
   shift: number;
   formant: number;
+  /** whether the current sound is a vowel (pitch-shifted) or noise like s/f/sh (not) */
+  voiced: boolean;
   /** delay added, in samples */
   latency: number;
   process(input: Float32Array, output: Float32Array): void;

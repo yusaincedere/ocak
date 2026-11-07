@@ -43,10 +43,10 @@ for (const [who, f0] of [['a deep voice', 115], ['a higher voice', 200]] as cons
     const { voice, out } = run(input);
     assert.ok(Math.abs(voice.pitch - f0) < 5, `heard ${voice.pitch}`);
     const target = f0 * voice.shift;
-    assert.ok(target > 240 && target < 300, `moved to ${target}`);
+    assert.ok(target > 270 && target < 320, `moved to ${target}`);
     // the new fundamental is there; the old one is gone
     assert.ok(level(out, target) > 5 * level(out, f0), 'new pitch is the strong one');
-    assert.ok(voice.formant > 1.1 && voice.formant <= 1.32, `formants x${voice.formant}`);
+    assert.ok(voice.formant > 1.15 && voice.formant <= 1.5, `formants x${voice.formant}`);
     const loudness = rms(out) / rms(input);
     assert.ok(loudness > 0.8 && loudness < 1.25, `loudness x${loudness}`);
     assert.ok(peak(out) < 1, 'never clips');
@@ -55,6 +55,29 @@ for (const [who, f0] of [['a deep voice', 115], ['a higher voice', 200]] as cons
 
 test('adds only a short delay, and silence stays silent', () => {
   const { voice, out } = run(new Float32Array(SR));
-  assert.ok((voice.latency / SR) * 1000 < 25);
+  assert.ok((voice.latency / SR) * 1000 < 40);
   assert.equal(peak(out), 0);
+});
+
+test('a hissing sound (s, sh) keeps its own pitch', () => {
+  // vowel, then high noise like an "s", then vowel again
+  const vowelPart = vowel(115, 1);
+  const hiss = new Float32Array(SR);
+  let prev = 0;
+  for (let i = 0; i < hiss.length; i++) {
+    const white = Math.random() * 2 - 1;
+    hiss[i] = (white - prev) * 0.05; // high-pass: energy mostly up high
+    prev = white;
+  }
+  const voice = new ChildVoice(SR);
+  const out = new Float32Array(128);
+  const seen: boolean[] = [];
+  for (const part of [vowelPart, hiss])
+    for (let i = 0; i < part.length; i += 128) {
+      voice.process(part.subarray(i, i + 128), out);
+      seen.push(voice.voiced);
+    }
+  const half = seen.length / 2;
+  assert.ok(seen.slice(half / 2, half).every(Boolean), 'the vowel is shifted');
+  assert.ok(seen.slice(half + half / 2).every((v) => !v), 'the hiss is not');
 });

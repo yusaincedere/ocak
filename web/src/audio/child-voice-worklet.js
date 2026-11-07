@@ -2,22 +2,27 @@
 // as-is by the browser's audio thread).
 //
 // A child's voice differs from an adult's in two ways, and both are changed here:
-//   - pitch: children speak at about 250-300 Hz (adult men ~110 Hz, women ~210 Hz)
-//   - formants: a smaller throat and mouth make every vowel resonance ~25-35% higher
+//   - pitch: children speak at about 280-320 Hz (adult men ~110 Hz, women ~210 Hz), with a
+//     livelier melody
+//   - formants: a smaller throat and mouth put every vowel resonance higher (up to ~1.5x a man's)
 // Just speeding the sound up moves both by the same amount, which sounds like a chipmunk.
-// Instead this is a phase vocoder (short overlapping FFT frames) that separates each frame into
-// its spectral envelope (the formants, via cepstral smoothing) and its fine structure (the
-// harmonics), raises the harmonics by the pitch factor and the envelope by a smaller formant
-// factor, and puts them back together.
-// The pitch factor adapts to the speaker: their own pitch is measured (cepstral peak, smoothed
-// over about a second), so a deep and a high voice both end up at a child's pitch.
+// Instead this is a phase vocoder (overlapping FFT frames) that separates each frame into its
+// spectral envelope (the formants, via "true envelope" cepstral smoothing) and its fine
+// structure (the harmonics), raises the harmonics by the pitch factor and the envelope by a
+// smaller formant factor, and puts them back together. Each harmonic moves as one piece with
+// its neighbouring bins (phase locking), which keeps it from sounding metallic.
+// The pitch factor adapts to the speaker: their own pitch is measured and smoothed over about
+// a second, so a deep and a high voice both end up at a child's pitch.
 
-const TARGET_PITCH = 285; // Hz, a young child's speaking pitch
+const TARGET_PITCH = 300; // Hz, a young child's speaking pitch
 const MIN_SHIFT = 1.2;
-const MAX_SHIFT = 2.3;
-/** How much of the pitch change the formants follow (children: ~1.25-1.35x adult formants). */
-const FORMANT_FOLLOW = 0.27;
-const MAX_FORMANT = 1.32;
+const MAX_SHIFT = 2.6;
+/** Formants: a little higher for everyone, plus part of the pitch change; at most 1.5x. */
+const FORMANT_BASE = 1.08;
+const FORMANT_FOLLOW = 0.3;
+const MAX_FORMANT = 1.5;
+/** How much the speaker's own melody is exaggerated (children's voices go up and down more). */
+const MELODY = 0.3;
 
 /** In-place radix-2 complex FFT. */
 class FFT {
@@ -81,8 +86,8 @@ export class ChildVoice {
    */
   constructor(sampleRate, opts = {}) {
     this.sr = sampleRate;
-    // ~21 ms frames at 48 kHz, 8x overlap: smooth, and little delay
-    const n = opts.frame ?? (sampleRate > 32000 ? 1024 : 512);
+    // ~43 ms frames at 48 kHz (long enough to tell a deep voice's harmonics apart), 8x overlap
+    const n = opts.frame ?? (sampleRate > 32000 ? 2048 : 1024);
     const osamp = opts.overlap ?? 8;
     this.n = n;
     this.half = n / 2;
@@ -127,8 +132,12 @@ export class ChildVoice {
     this.outPower = 0;
     this.smooth = Math.exp(-1 / (0.15 * sampleRate));
     this.pitch = 0; // the speaker's own pitch (Hz), 0 until heard
+    this.now = 0; // the pitch right now (Hz)
+    this.voiced = false; // vowels; noisy sounds (s, f, sh) are not
+    this.lowBins = Math.round((1500 * n) / sampleRate);
+    this.frameShift = 1; // this frame's factor, changing smoothly
     this.shift = 1.6;
-    this.formant = 1 + (this.shift - 1) * FORMANT_FOLLOW;
+    this.formant = Math.min(MAX_FORMANT, FORMANT_BASE + (this.shift - 1) * FORMANT_FOLLOW);
   }
 
   /** Processes one block; input and output may be any length (the same). */
@@ -186,12 +195,28 @@ export class ChildVoice {
     const h = this.history;
     h.copyWithin(0, this.hop);
     h.set(this.inFifo.subarray(n - this.hop, n), h.length - this.hop);
-    if (++this.frames % 4 === 0 && energy > 1e-3) this.detectPitch();
+    if (++this.frames % 2 === 0 && energy > 1e-3) this.detectPitch();
+    // Vowels have most of their energy low, noisy sounds (s, f, sh) high up; with some
+    // hysteresis, so it doesn't flicker within a sound.
+    let low = 0;
+    for (let k = 0; k < this.lowBins; k++) low += mag[k] * mag[k];
+    const lowShare = energy > 0 ? low / energy : 0;
+    if (lowShare > 0.5) this.voiced = true;
+    else if (lowShare < 0.25) this.voiced = false;
 
     // Fine structure up by the pitch factor, one harmonic at a time: each spectral peak and the
     // bins around it move together, keeping their phases relative to the peak ("phase locking"),
     // which avoids the metallic, phasey sound of moving every bin on its own.
-    const shift = this.shift;
+    // This frame's pitch factor: the speaker's own, with a bit of their melody on top; noisy
+    // sounds (s, f, sh) keep their pitch, shifting noise only garbles it.
+    let want = 1;
+    if (this.voiced) {
+      want = this.shift;
+      if (this.pitch && this.now) want *= Math.pow(Math.min(1.6, Math.max(0.6, this.now / this.pitch)), MELODY);
+    }
+    // glide to it (a jump would scatter the harmonics), except into a consonant, which is sudden
+    this.frameShift = want === 1 ? 1 : this.frameShift === 1 ? want : this.frameShift + (want - this.frameShift) * 0.15;
+    const shift = this.frameShift;
     const { peaks, outPhase, synPhase, lastPhase } = this;
     synMag.fill(0);
     let count = 0;
@@ -302,7 +327,7 @@ export class ChildVoice {
       corr[lag] = c / (Math.sqrt(e1 * e2) + 1e-12);
       if (lag <= maxLag && corr[lag] > best) best = corr[lag];
     }
-    if (best < 0.6) return; // not voiced
+    if (best < 0.6) return; // no clear pitch
     for (let lag = minLag + 1; lag <= maxLag; lag++)
       if (corr[lag] >= best * 0.9 && corr[lag] >= corr[lag - 1] && corr[lag] >= corr[lag + 1]) {
         // refine between samples (parabola through the peak)
@@ -317,10 +342,11 @@ export class ChildVoice {
   /** A pitch was heard: the speaker's pitch moves slowly toward it, and the shift follows. */
   heard(hz) {
     if (hz < 70 || hz > 420) return;
-    this.pitch = this.pitch ? Math.exp(Math.log(this.pitch) * 0.95 + Math.log(hz) * 0.05) : hz;
+    this.now = this.now ? this.now + (hz - this.now) * 0.2 : hz;
+    this.pitch = this.pitch ? Math.exp(Math.log(this.pitch) * 0.97 + Math.log(hz) * 0.03) : hz;
     const want = Math.min(MAX_SHIFT, Math.max(MIN_SHIFT, TARGET_PITCH / this.pitch));
-    this.shift += (want - this.shift) * 0.15;
-    this.formant = Math.min(MAX_FORMANT, 1 + (this.shift - 1) * FORMANT_FOLLOW);
+    this.shift += (want - this.shift) * 0.1;
+    this.formant = Math.min(MAX_FORMANT, FORMANT_BASE + (this.shift - 1) * FORMANT_FOLLOW);
   }
 }
 
